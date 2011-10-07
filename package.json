@@ -1,0 +1,14 @@
+{
+  "author": "BigWookie",
+  "name": "neurons",
+  "description": "Module Pattern implementation",
+  "version": "1",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/BigWookie/neurons.git"
+  },
+  "main": "lib/neurons.js",
+  "engines": {
+    "node": ">= v0.4.0"
+  }
+}
