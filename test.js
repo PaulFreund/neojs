@@ -1,10 +1,9 @@
 global.neurons = require('./lib/neurons.js');
+var util = require('util');
 
-
-var testobj = neurons.create({
+neurons.load({
     name: 'Testobj',
     depends: [
-        
     ],
     modules: [
         'util'
@@ -14,12 +13,13 @@ var testobj = neurons.create({
         { name: 'testvar2', value: 10 }
     ],
     methods: [
-        function roflcopter() {
-            //console.log('test:'+self.util.inspect(self));
+        function outputchain() {
+            console.log('CHAINED');
         },
         function output(name) {
-            //console.log(self.util.inspect(self));
-            console.log('outputfunct: '+self.testvar); 
+            console.log('outputfunct: '+this[name]); 
+            this.outputchain();
+
         }
     ],
     slots: [
@@ -28,11 +28,11 @@ var testobj = neurons.create({
         }
     ],
     exports: [
-        'roflcopter',
         'output'
     ]
 });
-    
-testobj.output('testvar');
-testobj.roflcopter();
+console.log('test: '+util.inspect(neurons));
+neurons.Testobj.output('testvar2');
+neurons.events.emit('onTest');
+
 
