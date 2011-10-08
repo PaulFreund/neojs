@@ -31,7 +31,7 @@ neurons.load({
         'output'
     ]
 });
-console.log('test: '+util.inspect(neurons));
+
 neurons.Testobj.output('testvar2');
 neurons.events.emit('onTest');
 
