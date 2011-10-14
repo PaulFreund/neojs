@@ -32,6 +32,9 @@ neurons.load({
     ]
 });
 
+
+console.log(parseInt("010", 10));
+
 neurons.Testobj.output('testvar2');
 neurons.events.emit('onTest');
 
