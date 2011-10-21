@@ -1,13 +1,13 @@
 {
   "author": "BigWookie",
-  "name": "neurons",
-  "description": "Module Pattern implementation",
+  "name": "neo",
+  "description": "Class like objects in node.js",
   "version": "1",
   "repository": {
     "type": "git",
-    "url": "git://github.com/BigWookie/neurons.git"
+    "url": "git://github.com/BigWookie/neo.git"
   },
-  "main": "lib/neurons.js",
+  "main": "lib/neo.js",
   "engines": {
     "node": ">= v0.4.0"
   }
