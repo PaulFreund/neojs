@@ -1,1 +1,0 @@
-neuronen bilden mien normales objekt pattern ab, und ich kann welche hinzufuegen und ich kann auf welche warten und es gibt nen message bus und configs usw
