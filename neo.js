@@ -17,7 +17,7 @@ module.exports = (function () {
     // Requirements
     ////=============================================================================================
        
-    scope.events = require('events');
+    scope.events = require('EventEmitter2');
     scope.util = require('util');
     scope.fs = require('fs');
     
@@ -26,7 +26,6 @@ module.exports = (function () {
     ////=============================================================================================
 
     scope.name = 'neo';
-    scope.eventBus = new scope.events.EventEmitter();
     scope.path = process.cwd();
     scope.config = {};
     scope.debug = false;
@@ -34,6 +33,7 @@ module.exports = (function () {
     scope.modules = {};
     scope.namespace = {};
     scope.waiting = [];
+    scope.eventBus = new scope.events.EventEmitter2({wildcard: true, delimiter: '.', maxListeners: 200});
 
     ////=============================================================================================
     // Methods
@@ -113,7 +113,7 @@ module.exports = (function () {
                 }
             }
             else {
-                log('debug','loadModule: createTemplate failed!');
+                scope.log('debug','loadModule: createTemplate failed!');
                 return false;
             }
         });
@@ -196,6 +196,7 @@ module.exports = (function () {
             var missing = checked.join(',');
             scope.log('debug','Dependencies: '+missing+ ' not found!');
             scope.addWaiting(what, config, ready);
+            ready(false);
             return false;
         }
         
@@ -309,26 +310,12 @@ module.exports = (function () {
                     }
                 }
             }
-            
-            //// Commented out because of path issues, node v5 will drop require.paths
-            // Add required modules to the object
-            //if( template.modules ) {
-            //    for( var module in template.modules ) {
-            //        if( template.modules.hasOwnProperty(module) ) {
-            //            if( typeof(template.modules[module]) === 'string' )
-            //                self[template.modules[module]] = require(template.modules[module]);
-            //            else
-            //                self[template.modules[module].name] = require(template.modules[module].value);
-            //        }
-            //    }
-            //}        
-            
+
             // Add methods to the object
             if( template.methods ) {
                 for( var method in template.methods ) {
                     if( template.methods.hasOwnProperty(method) ) {
                         self[template.methods[method].name] = template.methods[method];
-
                     }
                 }
             }
@@ -337,12 +324,25 @@ module.exports = (function () {
             if( template.slots ) {
                 for( var slot in template.slots ) {
                     if( template.slots.hasOwnProperty(slot) ) {
-                        self[template.slots[slot].name] = template.slots[slot];
-                        this[template.slots[slot].name] = function(){
-                            self[template.slots[slot].name].apply(self,arguments);
-                        };
-                        self.events.addListener(template.slots[slot].name, this[template.slots[slot].name]);
-                        returns[template.slots[slot].name] = this[template.slots[slot].name];
+                        var name, fkt;
+                        if( typeof(template.slots[slot]) === 'function' ) {
+                            name = self.name+'.'+template.slots[slot].name;
+                            fkt = template.slots[slot];
+                        }
+                        else {
+                            name = template.slots[slot].name;
+                            fkt =  template.slots[slot].value;
+                        }
+                        
+                        self[name] = fkt;
+                        this[name] = (function(){
+                            var me = name;
+                            return function(){
+                                return self[me].apply(self,arguments);
+                            };
+                        })();
+                        self.events.addListener(name, this[name]);
+                        returns[name] = this[name];  
                         
                     }
                 }
@@ -464,7 +464,7 @@ module.exports = (function () {
         if( template.depends && template.depends.length > 0) {
             for( var index in template.depends ) {
                 if( template.depends.hasOwnProperty(index) ) {
-                    if( ! scope.templates[template.depends[index]]  )
+                    if( ! scope.modules[template.depends[index]]  )
                         missing.push(template.depends[index]);
                 }
             }
