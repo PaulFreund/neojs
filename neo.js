@@ -34,7 +34,7 @@ module.exports = (function () {
     // Requirements
     ////=============================================================================================
        
-    scope.events = require('EventEmitter2');
+    scope.events = require('eventemitter2');
     scope.util = require('util');
     scope.fs = require('fs');
     
