@@ -1,15 +1,27 @@
 {
-  "author": "BigWookie",
-  "name": "neo",
-  "description": "Class like objects in node.js",
-  "version": "1",
-  "repository": {
-    "type": "git",
-    "url": "git://github.com/BigWookie/neo.git"
-  },
-  "main": "neo.js",
-  "engines": {
-    "node": ">= v0.4.0"
-  }
+        "name": "neo",
+        "preferGlobal": false,
+        "version": "1.0.0",
+        "author": "Paul Freund",
+        "description": "OOP Wrapper for Node.JS",
+        "contributors": [
+                {
+                        "name": "Paul Freund",
+                        "email": "freund.paul@lvl3.org"
+                }
+        ],
+        "repository": {
+                "type": "git",
+                "url": "https://github.com/PaulFreund/neo.git"
+        },
+        "keywords": [
+                "neo"
+        ],
+        "dependencies": {
+		"eventemitter2": "0.4.11"
+        },
+        "license": "MIT",
+        "engines": {
+                "node": ">=v0.6.0"
+        }
 }
-
