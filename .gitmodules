@@ -1,4 +1,0 @@
-[submodule "node_modules/EventEmitter2"]
-        path = node_modules/EventEmitter2
-        url = https://github.com/hij1nx/EventEmitter2.git
-

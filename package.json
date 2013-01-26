@@ -1,5 +1,6 @@
 {
         "name": "neo",
+	"main": "neo",
         "preferGlobal": false,
         "version": "1.0.0",
         "author": "Paul Freund",
