@@ -1,10 +1,10 @@
 {
-        "name": "neo",
-	"main": "neo",
+        "name": "neojs",
+	"main": "neojs",
         "preferGlobal": false,
         "version": "1.0.0",
         "author": "Paul Freund",
-        "description": "OOP Wrapper for Node.JS, including useful modules",
+        "description": "Node enhanced objects, event driven OOP pattern. Includes useful modules for different tasks.",
         "contributors": [
                 {
                         "name": "Paul Freund",
@@ -13,9 +13,10 @@
         ],
         "repository": {
                 "type": "git",
-                "url": "https://github.com/PaulFreund/neo.git"
+                "url": "https://github.com/PaulFreund/neojs.git"
         },
         "keywords": [
+        	"neojs",
                 "neo"
         ],
         "dependencies": {
