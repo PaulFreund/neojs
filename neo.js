@@ -36,6 +36,7 @@ module.exports = (function () {
        
     scope.events = require('eventemitter2');
     scope.util = require('util');
+    scope.path = require('path');
     scope.fs = require('fs');
     
     ////=============================================================================================
@@ -43,7 +44,7 @@ module.exports = (function () {
     ////=============================================================================================
 
     scope.name = 'neo';
-    scope.path = process.cwd();
+    scope.processPath = process.cwd();
     scope.config = {};
     scope.debug = false;
     scope.templates = {};
@@ -63,7 +64,7 @@ module.exports = (function () {
     // Initialize
     scope.init = function() {
         process.addListener("unhandledException", function (err) {
-            console.log(err);
+            scope.eventBus.console.log(err);
         });
 
         scope.eventBus.on('onError', scope.onError);
@@ -104,13 +105,13 @@ module.exports = (function () {
     
 
     ////---------------------------------------------------------------------------------------------
-    // Add all neccesary templates, create object and add it to namespace    
+    // Add all necessary templates, create object and add it to namespace
     scope.loadModule = function(what, ready) { 
         var self = this;
         var name = scope.registerTemplate(what);
         
         if( name === false ) {
-            log('debug','Registering template failed wont retry!');
+            scope.log('debug','Registering template failed wont retry!');
             ready(undefined);
         }
     
@@ -135,7 +136,40 @@ module.exports = (function () {
             }
         });
     };
-    
+
+    ////---------------------------------------------------------------------------------------------
+    // Get code for template
+    scope.loadTemplate = function(what, internal) {
+
+        // this already is an object
+        if( typeof(what) !== 'string')
+            return what;
+
+        // try to resolve with module folder
+        if( internal === true ) {
+
+            if( what.indexOf('.js') == -1 )
+                what += '.js';
+
+            what = scope.path.resolve(__dirname, "modules/"+what);
+        }
+
+        var templateCode = undefined;
+        try {
+            templateCode = require(what);
+        }
+        catch(err) { }
+
+        if(!templateCode) {
+            if( internal !== true )
+                return scope.loadTemplate(what, true);
+            else
+                return undefined;
+        }
+
+        return templateCode;
+    };
+
     ////---------------------------------------------------------------------------------------------
     // Register template to be avalible at creation
     scope.registerTemplate = function(what) {
@@ -143,13 +177,8 @@ module.exports = (function () {
         var template;
         
         // Filename or object
-        if( typeof(what) === 'string' ) {
-            template = require(what);
-        }
-        else {
-            template = what;
-        }
-        
+        template = scope.loadTemplate(what);
+
         // Template exists
         if( !template ) {
             scope.log('debug','Registering template failed');
@@ -225,7 +254,7 @@ module.exports = (function () {
                 return true;
             }
             else {
-                log('debug','createModule failed for template '+template.name);
+                scope.log('debug','createModule failed for template '+template.name);
                 return false;
             }       
         });
@@ -242,7 +271,7 @@ module.exports = (function () {
             
             // is registered? 
             if( !scope.templates[template.inherits] ) {
-                log('debug','Base template '+template.inherits+' missing!');
+                scope.log('debug','Base template '+template.inherits+' missing!');
                 return false;
             }
             
@@ -296,7 +325,7 @@ module.exports = (function () {
             self.config = {};
             self.log = scope.log;
             self.events = scope.eventBus;
-            self.config.path = scope.path;   
+            self.config.path = scope.processPath;
             
             // Add name
             if( template.name ) {
@@ -559,7 +588,9 @@ module.exports = (function () {
     ////-----------------------------------------------------------------------------------------
     //  Destruction
     scope.log = function(type, msg) {
-        if( type === 'debug' && scope.debug ) {
+        var showDebug = ( type === 'debug' && scope.debug );
+        var showError = ( type === 'error');
+        if( showError || showDebug ) {
             console.log('['+this.name+']'+this.util.inspect(msg));
         }
     };
