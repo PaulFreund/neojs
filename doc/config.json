@@ -1,6 +1,8 @@
-{
-    "debug": false,
-    "template": {
-        "key": "value"
+[
+    {
+        "id": "instanceName",
+        "template": "templateName",
+        "depends": ["otherInstanceName"],
+        "templateConfigKey": "templateConfigKeyValue"
     }
-}
+]

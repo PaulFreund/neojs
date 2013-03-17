@@ -40,18 +40,17 @@ module.exports = (function () {
     scope.fs = require('fs');
     
     ////=============================================================================================
-    // Propertys
+    // Properties
     ////=============================================================================================
 
     scope.name = 'neo';
-    scope.processPath = process.cwd();
-    scope.config = {};
     scope.debug = false;
-    scope.templates = {};
-    scope.modules = {};
+    scope.processPath = process.cwd();
     scope.namespace = {};
-    scope.waiting = [];
     scope.eventBus = new scope.events.EventEmitter2({wildcard: true, delimiter: '.', maxListeners: 200});
+    scope.templates = {};
+    scope.objects = {};
+    scope.waiting = [];
 
     ////=============================================================================================
     // Methods
@@ -61,228 +60,183 @@ module.exports = (function () {
     // General
 
     ////---------------------------------------------------------------------------------------------
-    // Initialize
-    scope.init = function() {
-        process.addListener("unhandledException", function (err) {
-            scope.eventBus.console.log(err);
-        });
-
-        scope.eventBus.on('onError', scope.onError);
-    };
-    
-    ////---------------------------------------------------------------------------------------------
-    // Set config avalible to all newly created templates
-    scope.addConfig = function(what) {
-        
-        if( what === undefined ) {
-            scope.log('debug','Config Empty');
-            return false;
-        }
-        
-        var newConfig;
-        if( typeof(what) === 'string' )
-            newConfig = JSON.parse(scope.fs.readFileSync(what));            
-        else
-            newConfig = what;
-            
-            
-        if( ! newConfig ) {
-            scope.log('debug','Config Invalid');
-            return false;
-        }
-
-        for( var key in newConfig ) {
-            if( newConfig.hasOwnProperty(key) ) {
-                scope.config[key] = newConfig[key];    
-            }
-        }
-        if( newConfig.debug !== undefined ) {
-                scope.debug = newConfig.debug;
-        }
-        
-        return true;
-    };
-    
-
-    ////---------------------------------------------------------------------------------------------
-    // Add all necessary templates, create object and add it to namespace
-    scope.loadModule = function(what, ready) { 
-        var self = this;
-        var name = scope.registerTemplate(what);
-        
-        if( name === false ) {
-            scope.log('debug','Registering template failed wont retry!');
-            ready(undefined);
-        }
-    
-        var config;
-        if( scope.config[name] )
-            config = scope.config[name];            
-        
-        scope.createTemplate(name, config, function(obj) {
-            if( obj ) {
-                scope.registerModule(obj);
-                if( ready ) {
-                    ready(obj);
-                    return true;
-                }
-                else {
-                    return obj;
-                }
-            }
-            else {
-                scope.log('debug','loadModule: createTemplate failed!');
-                return false;
-            }
+    // Construction
+    scope.init = function()
+    {
+        process.addListener("unhandledException", function (err)
+        {
+            scope.log('error', err);
         });
     };
 
-    ////---------------------------------------------------------------------------------------------
-    // Get code for template
-    scope.loadTemplate = function(what, internal) {
+    ////-----------------------------------------------------------------------------------------
+    //  Destruction
+    scope.exit = function(callback)
+    {
 
-        // this already is an object
-        if( typeof(what) !== 'string')
-            return what;
-
-        // try to resolve with module folder
-        if( internal === true ) {
-
-            if( what.indexOf('.js') == -1 )
-                what += '.js';
-
-            what = scope.path.resolve(__dirname, "modules/"+what);
-        }
-
-        var templateCode = undefined;
-        try {
-            templateCode = require(what);
-        }
-        catch(err) { }
-
-        if(!templateCode) {
-            if( internal !== true )
-                return scope.loadTemplate(what, true);
+        var objectCounter = scope.objects.keys.length;
+        scope.eventBus.emit('exit', function()
+        {
+            if( objectCounter === 0 )
+                callback();
             else
-                return undefined;
+                objectCounter--;
+        });
+    };
+
+    ////-----------------------------------------------------------------------------------------
+    //  Logging
+    scope.log = function(type, msg)
+    {
+        var showDebug = ( type === 'debug' && scope.debug );
+        var showError = ( type === 'error');
+
+        if( showError || showDebug )
+        {
+            console.log('['+this.name+']'+this.util.inspect(msg));
+        }
+    };
+
+    ////=============================================================================================
+    // Template handling
+
+    ////---------------------------------------------------------------------------------------------
+    // Register a template
+    scope.templateRegister = function(source)
+    {
+        if( source === undefined )
+        {
+            scope.log('debug','No template data supplied');
+            return false;
         }
 
-        return templateCode;
+        var templateObjects = [];
+
+        // This is not an object
+        if( typeof(source) === 'string')
+        {
+            try
+            {
+                var stats = scope.fs.statSync(source);
+
+                // It is a directory
+                if (stats.isDirectory())
+                {
+                    scope.fs.readdir(source, function (err, list)
+                    {
+                        if (err) { return; }
+                        list.forEach(function (file) {templateObjects.push(scope.templateLoadFile(file));} );
+                    });
+                }
+                // It is a file
+                else
+                {
+                    templateObjects.push(scope.templateLoadFile(source));
+                }
+            }
+            catch (err) {
+                scope.log('error', 'Error registering templates: ' + scope.util.inspect(err));
+            }
+        }
+        // Its an object
+        else
+        {
+            templateObjects.push(source);
+        }
+
+        // Iterate over acquired objects
+        for( var templateIndex in templateObjects)
+        {
+            if( templateObjects.hasOwnProperty(templateIndex) )
+            {
+                var templateObject = templateObjects[templateIndex];
+                if( templateObject !== undefined )
+                    scope.templateProcessObject(templateObject);
+            }
+        }
     };
 
     ////---------------------------------------------------------------------------------------------
-    // Register template to be avalible at creation
-    scope.registerTemplate = function(what) {
-        var self = this;
-        var template;
-        
-        // Filename or object
-        template = scope.loadTemplate(what);
-
+    // Check if template object is valid and add it to internal list
+    scope.templateProcessObject = function(templateObject)
+    {
         // Template exists
-        if( !template ) {
+        if( !templateObject ) {
             scope.log('debug','Registering template failed');
             return false;
         }
-            
+
         // Has a name
-        if( !template.name ) {
+        if( !templateObject.name ) {
             scope.log('debug','Template has no name');
             return false;
         }
-        
+
         // Template exists?
-        if( scope.templates[template.name] ) {
-            scope.log('debug','Template '+template.name+'already exists');
+        if( scope.templates[templateObject.name] ) {
+            scope.log('debug','Template '+templateObject.name+'already exists');
             return false;
         }
-        
+
         // Add inheritances
-        template = scope.inherit(template);
-        if( template === false ) {
-            scope.log('debug','Inheriting failed, no retry');
+        templateObject = scope.templateInherit(templateObject);
+        if( templateObject === false ) {
+            scope.log('debug','Inheriting template '+templateObject.name+' failed');
             return false;
         }
-        
-        // Create template entry
-        scope.templates[template.name] = template;
-        
-        return template.name;
-    };
-    
-    ////-----------------------------------------------------------------------------------------
-    //  Recheck dependencies
-    scope.registerModule = function(module) {
-        if( scope.modules[module.name] ) {
-            scope.log('debug','Module '+module.name+' already registered');
-            return false;
-        }
-        
-        scope.modules[module.name] = module;
-        scope.namespace[module.name] = module;
-        return true;
+
+        // Add template
+        scope.templates[templateObject.name] = templateObject;
+
+        return templateObject.name;
     };
 
-    
     ////---------------------------------------------------------------------------------------------
-    // Take an Template identifier and create an object from it, it'll be returned and NOT added 
-    scope.createTemplate = function(what, config, ready) {
+    // Load a template from file
+    scope.templateLoadFile = function(filePath)
+    {
+        // No directories
+        if(scope.fs.statSync(filePath).isDirectory())
+            return undefined;
 
-        var template = scope.templates[what];
-        
-        // Template exists?
-        if( !template ) {
-            scope.log('debug','Template '+what+ 'not found!');
-            return false;
+        // Only js files
+        if( filePath.indexOf('.js') == -1 )
+            return undefined;
+
+        // Load template file
+        try
+        {
+            return require(filePath);
         }
-        
-        // All dependencies statisfied?
-        var checked = scope.checkDeps(template);
-        if( checked !== true ) {
-            var missing = checked.join(',');
-            scope.log('debug','Dependencies: '+missing+ ' not found!');
-            scope.addWaiting(what, config, ready);
-            ready(false);
-            return false;
-        }
-        
-        scope.log('debug','Loading '+template.name);                
-        scope.createModule(template, config, function(obj) {
-            if( obj ) {
-                ready(obj);
-                scope.checkWaiting();
-                return true;
-            }
-            else {
-                scope.log('debug','createModule failed for template '+template.name);
-                return false;
-            }       
-        });
-        
-        return true;
+        catch(err) { }
+
+        return undefined;
     };
-    
+
     ////---------------------------------------------------------------------------------------------
-    // Recursively build template from inherits
-    
-    scope.inherit = function(template) {
+    // Add inherited aspects to template
+    scope.templateInherit = function(template)
+    {
         // Check inherits
-        if( template.inherits && template.inherits.length > 0 ) {
-            
-            // is registered? 
-            if( !scope.templates[template.inherits] ) {
+        if( template.inherits && template.inherits.length > 0 )
+        {
+            // is registered?
+            if( !scope.templates[template.inherits] )
+            {
                 scope.log('debug','Base template '+template.inherits+' missing!');
                 return false;
             }
-            
-            // Get base class
+
+            // Get base template
             var base = scope.templates[template.inherits];
             template.base = {};
-            
-            for( var categoryIndex in base) {
-                if( base.hasOwnProperty(categoryIndex) ) {
-                
-                    switch(categoryIndex) {
+
+            for( var categoryIndex in base)
+            {
+                if( base.hasOwnProperty(categoryIndex) )
+                {
+                    switch(categoryIndex)
+                    {
                     case 'init':
                     case 'exit':
                         template.base[categoryIndex] = base[categoryIndex];
@@ -292,14 +246,15 @@ module.exports = (function () {
                     case 'properties':
                     case 'methods':
                     case 'exports':
-                    case 'config': 
-                    case 'slots': 
-                        for( var key in base[categoryIndex] ) {
-                            if( base[categoryIndex].hasOwnProperty(key) ) {
-                                
+                    case 'config':
+                    case 'slots':
+                        for( var key in base[categoryIndex] )
+                        {
+                            if( base[categoryIndex].hasOwnProperty(key) )
+                            {
                                 if(! template[categoryIndex] )
                                     template[categoryIndex] = {};
-                                    
+
                                 template[categoryIndex][key] = base[categoryIndex][key];
                             }
                         }
@@ -308,71 +263,244 @@ module.exports = (function () {
                 }
             }
         }
-        
+
         return template;
-        
     };
-    
+
+    ////=============================================================================================
+    // Object handling
+
+    ////---------------------------------------------------------------------------------------------
+    // Create an object
+    scope.objectCreate = function(config, callback)
+    {
+        if( config === undefined )
+        {
+            scope.log('debug','Config Empty');
+            return false;
+        }
+
+        var configData = undefined;
+
+        if( typeof(config) === 'string' )
+            configData = scope.objectLoadConfigFile(config);
+        else
+            configData = config;
+
+        if( configData === undefined )
+        {
+            scope.log('debug','No valid configuration has been supplied');
+            return false;
+        }
+
+        if( Array.isArray(configData) )
+            configData.forEach(function(configObject) { scope.objectProcessConfig(configObject, callback); } );
+        else
+            scope.objectProcessConfig(configData, callback);
+
+        return true;
+    };
+
+    ////---------------------------------------------------------------------------------------------
+    // Process a config object
+    scope.objectProcessConfig = function(configObject, callback)
+    {
+        // Check if critical properties exist
+        if( configObject.id === undefined || configObject.template === undefined )
+        {
+            scope.log('error', "Could not create object, id or template missing");
+            return false;
+        }
+
+        // Check if id is unique
+        if( scope.objects.contains(configObject.id) )
+        {
+            scope.log('error', "There already is an object with the ID "+configObject.id);
+            return false;
+        }
+
+        // Load supplied templateFile if available
+        if( configObject.templateFile )
+            scope.templateRegister(configObject.templateFile);
+
+        // Check if template exists
+        var template = scope.templates[configObject.template];
+        if( !template )
+        {
+            scope.log('error',
+                'Could not create object with ID ' + configObject.id
+                + ' because template ' + configObject.template+' is missing'
+            );
+            return false;
+        }
+
+        // Check if dependencies are satisfied
+        var checkResult = scope.objectCheckDependencies(configObject);
+        if( checkResult !== true )
+        {
+            scope.log('error',
+                'Dependencies: ' + checkResult.join(',')
+                + ' not found for ID ' + configObject.id
+                + ' ,retrying when new objects are created'
+            );
+            scope.objectAddWaiting(configObject, callback);
+            return false;
+        }
+
+        // Create object instance
+        scope.log('debug','Creating template ' + configObject.template + ' for object with ID ' + configObject.id+'..');
+
+        scope.objectInstanceCreate(template, configObject, function(objectInterface)
+        {
+            if( objectInterface !== undefined)
+            {
+                callback(objectInterface);
+                scope.objectCheckWaiting();
+                return true;
+            }
+            else
+            {
+                scope.log('error',
+                    'Creating template failed for object with ID '+ configObject.id
+                        + ' with template '+configObject.template
+                );
+                return false;
+            }
+        });
+
+        return false;
+    };
+
+    ////---------------------------------------------------------------------------------------------
+    // Load a template from file
+    scope.objectLoadConfigFile = function(filePath)
+    {
+        // No directories
+        if(scope.fs.statSync(filePath).isDirectory())
+            return undefined;
+
+        // Only js files
+        if( filePath.indexOf('.json') == -1 )
+            return undefined;
+
+        // Load template file
+        try
+        {
+            return JSON.parse(scope.fs.readFileSync(filePath));
+        }
+        catch(err) { }
+
+        return undefined;
+    };
+
+    ////-----------------------------------------------------------------------------------------
+    //  Register object instance
+    scope.objectInstanceRegister = function(object)
+    {
+        if( scope.objects[object.id] )
+        {
+            scope.log('debug','Object with ID '+object.id+' already registered');
+            return false;
+        }
+        
+        scope.objects[object.id] = object;
+        scope.namespace[object.id] = object;
+        return true;
+    };
+
     ////---------------------------------------------------------------------------------------------
     // Create an object with an own context defined by a Template
-    scope.createModule = function(template, config, ready) {
-
-        function Template() {
+    scope.objectInstanceCreate = function(template, config, callback)
+    {
+        function Template()
+        {
             var self = {};
-            
+
+            ////-------------------------------------------------------------------------------------
             // Pre initialize values
+
             self.self = {};
-            self.config = {};
+
             self.log = scope.log;
             self.events = scope.eventBus;
-            self.config.path = scope.processPath;
-            
-            // Add name
-            if( template.name ) {
-                self.name = template.name;
-            }
-                
-            // Create returns
-            var returns = {};
-            returns.name = self.name;
-            
-            // Add depended Modules
-            if( template.depends ) {
-                for( var depend in template.depends ) {
-                    if( template.depends.hasOwnProperty(depend) ) {
-                        self[template.depends[depend]] = scope.modules[template.depends[depend]];
+            self.templateName = template.templateName;
+
+            // The object that will be returned and made available from outside
+            var objectInterface = {};
+            objectInterface.id = self.config.id;
+
+            ////-------------------------------------------------------------------------------------
+            // Set configuration
+
+            self.config = {};
+
+            // Add config if available
+            if( template.config )
+            {
+                for( var templateConfigIndex in template.config)
+                {
+                    if( template.config.hasOwnProperty(templateConfigIndex) )
+                    {
+                        if( typeof(template.config[templateConfigIndex]) === 'string' )
+                            self.config[template.config[templateConfigIndex]] = null;
+                        else
+                            self.config[template.config[templateConfigIndex].name] = template.config[templateConfigIndex].value;
                     }
                 }
-            }            
-            
-            // Add defined properties to the object
-            if( template.properties ) {
-                for( var property in template.properties ) {
-                    if( template.properties.hasOwnProperty(property) ) {
+            }
+
+            // Overwrite default config with external configuration values
+            for( var configIndex in config)
+            {
+                if( config.hasOwnProperty(configIndex) && self.config.hasOwnProperty(configIndex))
+                    self.config[configIndex] = config[configIndex];
+            }
+
+            self.config.id = config.id;
+            self.config.path = scope.processPath;
+
+            ////-------------------------------------------------------------------------------------
+            // Add properties to the object
+
+            if( template.properties )
+            {
+                for( var property in template.properties )
+                {
+                    if( template.properties.hasOwnProperty(property) )
+                    {
                         if( typeof(template.properties[property]) === 'string' )
                             self[template.properties[property]] = null;
                         else
-                            self[template.properties[property].name] = template.properties[property].value;                                
+                            self[template.properties[property].name] = template.properties[property].value;
                     }
                 }
             }
 
+            ////-------------------------------------------------------------------------------------
             // Add methods to the object
-            if( template.methods ) {
-                for( var method in template.methods ) {
-                    if( template.methods.hasOwnProperty(method) ) {
+
+            if( template.methods )
+            {
+                for( var method in template.methods )
+                {
+                    if( template.methods.hasOwnProperty(method) )
                         self[template.methods[method].name] = template.methods[method];
-                    }
                 }
             }
-                        
-            // Connect slots
-            if( template.slots ) {
-                for( var slot in template.slots ) {
-                    if( template.slots.hasOwnProperty(slot) ) {
+
+            ////-------------------------------------------------------------------------------------
+            // Add and register slots
+
+            if( template.slots )
+            {
+                for( var slot in template.slots )
+                {
+                    if( template.slots.hasOwnProperty(slot) )
+                    {
                         var name, fkt;
-                        if( typeof(template.slots[slot]) === 'function' ) {
-                            name = self.name+'.'+template.slots[slot].name;
+                        if( typeof(template.slots[slot]) === 'function' )
+                        {
+                            name = self.config.id+'.'+template.slots[slot].name;
                             fkt = template.slots[slot];
                         }
                         else {
@@ -381,221 +509,182 @@ module.exports = (function () {
                         }
                         
                         self[name] = fkt;
-                        this[name] = (function(){
+                        this[name] = ( function()
+                        {
                             var me = name;
-                            return function(){
+                            return function()
+                            {
                                 return self[me].apply(self,arguments);
                             };
                         })();
+
                         self.events.addListener(name, this[name]);
-                        returns[name] = this[name];  
-                        
+                        objectInterface[name] = this[name];
                     }
                 }
             }
-                        
-            // Add config if avalible
-            if( template.config ) {
-                for( var key in template.config) {
-                    if( template.config.hasOwnProperty(key) ) {
-                        
-                        if( typeof(template.config[key]) === 'string' )
-                            self.config[template.config[key]] = null;
-                        else
-                            self.config[template.config[key].name] = template.config[key].value;                                
-                    }
-                }
-            }
-            
-            // Overwrite default config with external configuration values
-            if( config ) {
-                for( var key2 in config) {
-                    if( config.hasOwnProperty(key2)         &&
-                        self.config.hasOwnProperty(key2)    ) {
-                    
-                    self.config[key2] = config[key2];
-                    
-                    }
-                }
-            }
-            
-             // Add Init function to object
+
+            ////-------------------------------------------------------------------------------------
+            // Add Init function to object
+
             if( template.init )
                 self.self.init = template.init;
-            
-            // Add Exit function to object
-            if( template.exit )
-                self.self.exit = template.exit;
 
-            // Add Init function to object
-            if( template.base && template.base.init ) {
+            if( template.base && template.base.init )
+            {
                 // Hook base template in the chain
-                self.init = function(initReady) {  
-                    self.base.init.apply(self,[function(){    
+                self.init = function(initReady)
+                {
+                    self.base.init.apply(self,[function()
+                    {
                         self.init.apply(self,[initReady]);     
                     }]);
                 };
             }
-            else if(self.self.init) {
-                self.init = function(initReady) {
+            else if(self.self.init)
+            {
+                self.init = function(initReady)
+                {
                     self.self.init.apply(self,[initReady]);
                 };
             }
 
+            ////-------------------------------------------------------------------------------------
             // Add Exit function to object
-            if( template.base && template.base.exit ) {
+
+            if( template.exit )
+                self.self.exit = template.exit;
+
+            if( template.base && template.base.exit )
+            {
                 // Hook base template in the chain
-                self.exit = function(exitReady) {  
-                    self.base.exit.apply(self,[function() {    
+                self.exit = function(exitReady)
+                {
+                    self.base.exit.apply(self,[function()
+                    {
                         self.exit.apply(self,[exitReady]);     
                     }]);
                 };
             }
-            else if(self.self.exit) {
-                self.exit = function(exitReady) {
+            else if(self.self.exit)
+            {
+                self.exit = function(exitReady)
+                {
                     self.self.exit.apply(self,[exitReady]);
                 };
             }
-            
+
+            ////-------------------------------------------------------------------------------------
             // Add exit to the eventBus
-            if( self.exit ) {
-                self.events.on('exit',function(exitReady) {
+
+            if( self.exit )
+            {
+                self.events.on('exit',function(exitReady)
+                {
                     self.exit.apply(self,[exitReady]);
                 });
-
             }
- 
+
+            ////-------------------------------------------------------------------------------------
             // Create external function definitions
-            if( template.exports ) {
-                for( var exportdefine in template.exports ) {
-                    if( template.exports.hasOwnProperty(exportdefine) ) {
-                        var exportname = template.exports[exportdefine];
-                        if( typeof(self[exportname]) === 'function' ) {
-                            this[exportname] = (function(){
-                                var me = exportname;
-                                return function(){
+
+            if( template.exports )
+            {
+                for( var exportIndex in template.exports )
+                {
+                    if( template.exports.hasOwnProperty(exportIndex) )
+                    {
+                        var exportName = template.exports[exportIndex];
+                        if( typeof(self[exportName]) === 'function' )
+                        {
+                            this[exportName] = (function()
+                            {
+                                var me = exportName;
+                                return function()
+                                {
                                     return self[me].apply(self,arguments);
                                 };
                             })();
-                            
-                            returns[exportname] = this[exportname];
+
+                            objectInterface[exportName] = this[exportName];
                         }
-                        else {
-                            returns[exportname] = self[exportname];
+                        else
+                        {
+                            objectInterface[exportName] = self[exportName];
                         }
                     }
                 }
-            }             
- 
-            // Call init
-            if( self.init ) {
-                self.init.apply(self, [
-                    function() {
-                        ready(returns);    
-                    }
-                ]);
             }
+
+            ////-------------------------------------------------------------------------------------
+            // Call init
+
+            if( self.init )
+                self.init.apply(self, [ function() { callback(objectInterface); } ]);
         }
         
         new Template();
-    
     };
 
     ////-----------------------------------------------------------------------------------------
-    //  Check dependencies
-    scope.checkDeps = function(template) {
+    // Check dependencies
+    scope.objectCheckDependencies = function(config) {
         
-        var missing = [];
+        var missingDependencies = [];
 
-        if( template.depends && template.depends.length > 0) {
-            for( var index in template.depends ) {
-                if( template.depends.hasOwnProperty(index) ) {
-                    if( ! scope.modules[template.depends[index]]  )
-                        missing.push(template.depends[index]);
+        if( config.depends && config.depends.length > 0)
+        {
+            for( var index in config.depends )
+            {
+                if( config.depends.hasOwnProperty(index) )
+                {
+                    if( ! scope.objects[ config.depends[index] ]  )
+                        missingDependencies.push( config.depends[index] );
                 }
             }
         }
     
-        if( missing.length > 0 )
-            return missing;
+        if( missingDependencies.length > 0 )
+            return missingDependencies;
         else
             return true;        
     };
 
     ////-----------------------------------------------------------------------------------------
     //  Recheck dependencies
-    scope.addWaiting = function(what, config, ready) {
-        scope.log('debug','Dependencies for '+what+' not statisfied, waiting');
+    scope.objectAddWaiting = function(config, callback)
+    {
+        scope.log('debug','Dependencies for '+config.id+' not satisfied, waiting');
                 
         var self = {};
         self.pos = (scope.waiting.push({}) - 1);
-        self.ready = ready;
-        
-        scope.waiting[self.pos].what = what;
+        self.callback = callback;
+
         scope.waiting[self.pos].config = config;
-        scope.waiting[self.pos].ready = function() {
+        scope.waiting[self.pos].callback = function()
+        {
             scope.waiting.splice(self.pos, 1);
-            self.ready.apply(this, arguments);
+            self.callback.apply(this, arguments);
         };
     };
 
-
     ////-----------------------------------------------------------------------------------------
     //  Recheck dependencies of waiting list
-    scope.checkWaiting = function() {
+    scope.objectCheckWaiting = function()
+    {
         // Every element
-        if( scope.waiting.length > 0 ) {
-            for( var index in scope.waiting ) {
-             if( scope.waiting.hasOwnProperty(index) ) {
-                 var waiting = scope.waiting[index];
-                 
-                 scope.createTemplate(waiting.what, waiting.config, waiting.ready);
-                 return;
-             }
+        if( scope.waiting.length > 0 )
+        {
+            for( var index in scope.waiting )
+            {
+                if( scope.waiting.hasOwnProperty(index) )
+                {
+                    var waiting = scope.waiting[index];
+                    scope.objectProcessConfig(waiting.config, waiting.callback);
+                }
           }
         }      
     };
-    
-    ////=============================================================================================
-    // Helper and Handlers
-
-    ////-----------------------------------------------------------------------------------------
-    //  Get access to a module from the list 
-    scope.onError = function(err) {
-        console.log('Bad error occured');
-    };
-        
-    ////-----------------------------------------------------------------------------------------
-    //  Destruction
-    scope.exit = function(ready) {
-        var refcounter = 0;
-        
-        for( var neuron in scope.neurons ) {
-            if( scope.neurons.hasOwnProperty(neuron) ) {
-                if( scope.neurons[neuron].template.exit )
-                    refcounter++;
-            }
-        }
-        
-        scope.eventBus.emit('exit', function() {
-            if( refcounter === 0 )
-                ready();    
-            else
-                refcounter--;
-        });
-    };
-        
-    ////-----------------------------------------------------------------------------------------
-    //  Destruction
-    scope.log = function(type, msg) {
-        var showDebug = ( type === 'debug' && scope.debug );
-        var showError = ( type === 'error');
-        if( showError || showDebug ) {
-            console.log('['+this.name+']'+this.util.inspect(msg));
-        }
-    };
-
-    ////=============================================================================================
 
     ////=============================================================================================
     // Call Constructor
@@ -607,16 +696,16 @@ module.exports = (function () {
         
     ////=============================================================================================
     // External functions
-    //scope.namespace.create = scope.create;
     
     scope.namespace.neo = {};
-    scope.namespace.neo.load = scope.loadModule;
-    scope.namespace.neo.config = scope.addConfig;
-    scope.namespace.neo.register = scope.registerTemplate;
-    scope.namespace.neo.create = scope.createTemplate;
+
+    scope.namespace.neo.register    = scope.templateRegister;  // (source)
+    scope.namespace.neo.create      = scope.objectCreate;      // (config, callback)
+
+    scope.namespace.neo.enableDebug = function(enableDebug) { scope.debug = enableDebug; };
     scope.namespace.neo.events = scope.eventBus;
     scope.namespace.neo.exit = scope.exit;
-    
+
     return scope.namespace;
 
 })();
