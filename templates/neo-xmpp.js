@@ -109,7 +109,7 @@ module.exports = {
         // Stanza ( abstract message from server ) arrives // http://xmpp.org/rfcs/rfc6121.html
         function onStanza(stanza) {
             if(stanza.attrs.type === 'error') {
-		self.events.emit(self.name+'.error', 'stanza error');
+                self.signal('error', 'stanza error');
                 self.onError('Got an error from XMPP server');
             }
                      
@@ -127,10 +127,10 @@ module.exports = {
                             var message = body.children.join('');
                             
                             if( message.charAt(0) === '!') {
-                                self.events.emit(self.name+'.command', stanza.attrs.from, stanza.attrs.to, message);                    
+                                self.signal('command', stanza.attrs.from, stanza.attrs.to, message);
                             }
 		                    else {
-                                self.events.emit(self.name+'.message', stanza.attrs.from, stanza.attrs.to, message);
+                                self.signal('message', stanza.attrs.from, stanza.attrs.to, message);
                             }
                         }
                     }
@@ -141,20 +141,19 @@ module.exports = {
             if( stanza.is('presence')) {
                 
                 if( stanza.attrs.type === undefined ) {
-                    self.events.emit(self.name+'.online', stanza.attrs.from);
+                    self.signal('online', stanza.attrs.from);
                 }
                 else if ( stanza.attrs.type === 'unavailable') {
-                    self.events.emit(self.name+'.offline', stanza.attrs.from);
+                    self.signal('offline', stanza.attrs.from);
                 }
-                else if( stanza.attrs.type === 'subscribe' ) {       
-                    self.events.emit(self.name+'.subscribe', stanza.attrs.from);
+                else if( stanza.attrs.type === 'subscribe' ) {
+                    self.signal('subscribe', stanza.attrs.from);
                 }
                 else if( stanza.attrs.type === 'unsubscribe') {
-                    self.events.emit(self.name+'.unsubscribe', stanza.attrs.from);   
+                    self.signal('unsubscribe', stanza.attrs.from);
                 }
                 else {
-                    self.events.emit(   self.name+'.presence', stanza.attrs.from, 
-                                        stanza.attrs.to, stanza);
+                    self.signal('presence', stanza.attrs.from, stanza.attrs.to, stanza);
                 }
             }
         }    

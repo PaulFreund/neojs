@@ -74,10 +74,10 @@ module.exports = {
 
         this.db.init(function(err) {
             if(err) {
-                self.events.emit(self.name+'.error', 'Cant Init', err);
+                self.signal('error', 'Cant Init', err);
                 self.log('error', err);
             } else {
-                self.events.emit(self.name+'.ready');
+                self.signal('ready');
                 ready();
             }
         });

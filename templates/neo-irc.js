@@ -69,38 +69,38 @@ module.exports = {
                 message = message.replace(/[\x00-\x1F]/g, "");
     
                 if( message.charAt(0) === '!')
-                    self.events.emit(self.name+'.command', from, to, message);
+                    self.signal('command', from, to, message);
                 else
-                    self.events.emit(self.name+'.message', from, to, message);                
+                    self.signal('message', from, to, message);
             }
         });
     
         this.server.addListener('names', function(channel, names) {
-            self.events.emit(self.name+'.names', channel, names);
+            self.signal('names', channel, names);
         });  
         
         this.server.addListener('topic', function(channel,topic, nick) {
-            self.events.emit(self.name+'.topic', channel, topic, nick);
+            self.signal('topic', channel, topic, nick);
         });
     
         this.server.addListener('join', function(channel,nick) {
-            self.events.emit(self.name+'.join', channel, nick);
+            self.signal('join', channel, nick);
         });
     
         this.server.addListener('part', function(channel,nick) {
-            self.events.emit(self.name+'.part', channel, nick);
+            self.signal('part', channel, nick);
         });
         
         this.server.addListener('quit', function(nick, reason, channels) {
-            self.events.emit(self.name+'.quit', channels, nick);
+            self.signal('quit', channels, nick);
         });
         
         this.server.addListener('kick', function(channel,nick) {
-            self.events.emit(self.name+'.kick', channel, nick);
+            self.signal('kick', channel, nick);
         });
     
         this.server.addListener('nick', function(oldnick,newnick, channels) {
-            self.events.emit(self.name+'.nick', oldnick, newnick, channels);
+            self.signal('nick', oldnick, newnick, channels);
         });
 
         ready();

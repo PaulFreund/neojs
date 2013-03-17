@@ -125,11 +125,18 @@ module.exports = (function () {
                 // It is a directory
                 if (stats.isDirectory())
                 {
-                    scope.fs.readdir(source, function (err, list)
+                    var fileList = scope.fs.readdirSync(source);
+                    if(fileList && fileList.length > 0)
                     {
-                        if (err) { return; }
-                        list.forEach(function (file) {templateObjects.push(scope.templateLoadFile(file));} );
-                    });
+                        for( var fileIndex in fileList)
+                        {
+                            if( fileList.hasOwnProperty(fileIndex) )
+                            {
+                                var filePath = scope.path.resolve(source, fileList[fileIndex]);
+                                templateObjects.push(scope.templateLoadFile(filePath));
+                            }
+                        }
+                    }
                 }
                 // It is a file
                 else
@@ -170,48 +177,52 @@ module.exports = (function () {
         }
 
         // Has a name
-        if( !templateObject.name ) {
+        if( !templateObject.templateName ) {
             scope.log('debug','Template has no name');
             return false;
         }
 
         // Template exists?
-        if( scope.templates[templateObject.name] ) {
-            scope.log('debug','Template '+templateObject.name+'already exists');
+        if( scope.templates[templateObject.templateName] ) {
+            scope.log('debug','Template '+templateObject.templateName+'already exists');
             return false;
         }
 
         // Add inheritances
         templateObject = scope.templateInherit(templateObject);
         if( templateObject === false ) {
-            scope.log('debug','Inheriting template '+templateObject.name+' failed');
+            scope.log('debug','Inheriting template '+templateObject.templateName+' failed');
             return false;
         }
 
         // Add template
-        scope.templates[templateObject.name] = templateObject;
+        scope.templates[templateObject.templateName] = templateObject;
 
-        return templateObject.name;
+        return templateObject.templateName;
     };
 
     ////---------------------------------------------------------------------------------------------
     // Load a template from file
     scope.templateLoadFile = function(filePath)
     {
-        // No directories
-        if(scope.fs.statSync(filePath).isDirectory())
-            return undefined;
-
-        // Only js files
-        if( filePath.indexOf('.js') == -1 )
-            return undefined;
-
-        // Load template file
         try
         {
+            // No directories
+            if(scope.fs.statSync(filePath).isDirectory())
+                return undefined;
+
+            // Only js files
+            if( filePath.indexOf('.js') == -1 )
+                return undefined;
+
+            // Load template file
+
             return require(filePath);
         }
-        catch(err) { }
+        catch(err)
+        {
+            scope.log('error', 'Error reading template file: ' + scope.util.inspect(err));
+        }
 
         return undefined;
     };
@@ -297,9 +308,17 @@ module.exports = (function () {
         }
 
         if( Array.isArray(configData) )
-            configData.forEach(function(configObject) { scope.objectProcessConfig(configObject, callback); } );
+        {
+            for( var configIndex in configData)
+            {
+                if( configData.hasOwnProperty(configIndex) )
+                    scope.objectProcessConfig(configData[configIndex], callback);
+            }
+        }
         else
+        {
             scope.objectProcessConfig(configData, callback);
+        }
 
         return true;
     };
@@ -316,7 +335,7 @@ module.exports = (function () {
         }
 
         // Check if id is unique
-        if( scope.objects.contains(configObject.id) )
+        if( scope.objects[configObject.id] !== undefined )
         {
             scope.log('error', "There already is an object with the ID "+configObject.id);
             return false;
@@ -357,6 +376,7 @@ module.exports = (function () {
         {
             if( objectInterface !== undefined)
             {
+                scope.objectInstanceRegister(objectInterface);
                 callback(objectInterface);
                 scope.objectCheckWaiting();
                 return true;
@@ -428,9 +448,18 @@ module.exports = (function () {
             self.events = scope.eventBus;
             self.templateName = template.templateName;
 
+            self.signal = function(name)
+            {
+                var newArgs = [];
+                newArgs.push( (self.config.id+'.'+name) );
+                var args = Array.prototype.splice.call(arguments, 1);
+                newArgs = newArgs.concat(args);
+                self.events.emit.apply(this, newArgs);
+            };
+
             // The object that will be returned and made available from outside
             var objectInterface = {};
-            objectInterface.id = self.config.id;
+            objectInterface.id = config.id;
 
             ////-------------------------------------------------------------------------------------
             // Set configuration
@@ -683,7 +712,17 @@ module.exports = (function () {
                 if( scope.waiting.hasOwnProperty(index) )
                 {
                     var waiting = scope.waiting[index];
-                    scope.objectProcessConfig(waiting.config, waiting.callback);
+
+                    // Object already exists
+                    if( scope.objects[waiting.config.id] !== undefined)
+                    {
+                        delete scope.waiting[index];
+                        return;
+                    }
+                    else
+                    {
+                        scope.objectProcessConfig(waiting.config, waiting.callback);
+                    }
                 }
           }
         }      
