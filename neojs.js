@@ -67,6 +67,9 @@ module.exports = (function () {
         {
             scope.log('error', err);
         });
+
+        // Add default modules
+        scope.templateRegister(scope.path.resolve(__dirname, "templates"));
     };
 
     ////-----------------------------------------------------------------------------------------
