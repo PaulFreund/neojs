@@ -1,35 +1,35 @@
 {
-        "name": "neojs",
+    "name": "neojs",
 	"main": "neojs",
-        "preferGlobal": false,
-        "version": "1.0.1",
-        "author": "Paul Freund",
-        "description": "Node enhanced objects, event driven OOP pattern. Includes useful modules for different tasks.",
-        "contributors": [
-                {
-                        "name": "Paul Freund",
-                        "email": "freund.paul@lvl3.org"
-                }
-        ],
-        "repository": {
-                "type": "git",
-                "url": "https://github.com/PaulFreund/neojs.git"
-        },
-        "keywords": [
-        	"neojs",
-                "neo"
-        ],
-        "dependencies": {
+    "preferGlobal": false,
+    "version": "1.2.0",
+    "author": "Paul Freund",
+    "description": "Node enhanced objects, event driven OOP pattern. Includes useful modules for different tasks.",
+    "contributors": [
+        {
+            "name": "Paul Freund",
+            "email": "freund.paul@lvl3.org"
+        }
+    ],
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/PaulFreund/neojs.git"
+    },
+    "keywords": [
+        "neojs",
+        "neo"
+    ],
+    "dependencies": {
 		"eventemitter2": "0.4.11"
-        },
+    },
 	"optionalDependencies": {
 		"irc": "0.3.2",
 		"persistence": ">=0.2.5",
 		"ueberDB": "0.1.9",
 		"node-xmpp": "0.3.2"
 	},
-        "license": "MIT",
-        "engines": {
-                "node": ">=v0.6.0"
-        }
+    "license": "MIT",
+    "engines": {
+        "node": ">=v0.6.0"
+    }
 }

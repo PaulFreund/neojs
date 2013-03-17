@@ -360,7 +360,7 @@ module.exports = (function () {
         var checkResult = scope.objectCheckDependencies(configObject);
         if( checkResult !== true )
         {
-            scope.log('error',
+            scope.log('debug',
                 'Dependencies: ' + checkResult.join(',')
                 + ' not found for ID ' + configObject.id
                 + ' ,retrying when new objects are created'
@@ -450,11 +450,8 @@ module.exports = (function () {
 
             self.signal = function(name)
             {
-                var newArgs = [];
-                newArgs.push( (self.config.id+'.'+name) );
-                var args = Array.prototype.splice.call(arguments, 1);
-                newArgs = newArgs.concat(args);
-                self.events.emit.apply(this, newArgs);
+                arguments[0] = self.config.id+'.'+name;
+                self.events.emit.apply(self.events, arguments);
             };
 
             // The object that will be returned and made available from outside
