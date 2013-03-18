@@ -1,4 +1,10 @@
-# neo.js - Node enhanced objects #
+# neojs - Node enhanced objects #
+
+## Installation ##
+
+Neojs can be installed easily through npm 
+
+	npm install neojs
 
 ## Concept ##
 
