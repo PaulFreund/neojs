@@ -232,7 +232,7 @@ module.exports = (function () {
     scope.templateInherit = function(template)
     {
         // Check inherits
-        if( template.inherits && template.inherits.length > 0 )
+        if( template.inherits && typeof(template.inherits) === 'string')
         {
             // is registered?
             if( !scope.templates[template.inherits] )
@@ -444,6 +444,7 @@ module.exports = (function () {
 
             self.self = {};
 
+            self.neo = scope.namespace.neo;
             self.log = scope.log;
             self.events = scope.eventBus;
             self.templateName = template.templateName;
@@ -473,7 +474,7 @@ module.exports = (function () {
                         if( typeof(template.config[templateConfigIndex]) === 'string' )
                             self.config[template.config[templateConfigIndex]] = null;
                         else
-                            self.config[template.config[templateConfigIndex].name] = template.config[templateConfigIndex].value;
+                            self.config[template.config[templateConfigIndex].key] = template.config[templateConfigIndex].value;
                     }
                 }
             }
@@ -500,7 +501,7 @@ module.exports = (function () {
                         if( typeof(template.properties[property]) === 'string' )
                             self[template.properties[property]] = null;
                         else
-                            self[template.properties[property].name] = template.properties[property].value;
+                            self[template.properties[property].key] = template.properties[property].value;
                     }
                 }
             }
@@ -526,29 +527,29 @@ module.exports = (function () {
                 {
                     if( template.slots.hasOwnProperty(slot) )
                     {
-                        var name, fkt;
+                        var key, fkt;
                         if( typeof(template.slots[slot]) === 'function' )
                         {
-                            name = self.config.id+'.'+template.slots[slot].name;
+                            key = self.config.id+'.'+template.slots[slot].name;
                             fkt = template.slots[slot];
                         }
                         else {
-                            name = template.slots[slot].name;
+                            key = template.slots[slot].key;
                             fkt =  template.slots[slot].value;
                         }
                         
-                        self[name] = fkt;
-                        this[name] = ( function()
+                        self[key] = fkt;
+                        this[key] = ( function()
                         {
-                            var me = name;
+                            var me = key;
                             return function()
                             {
                                 return self[me].apply(self,arguments);
                             };
                         })();
 
-                        self.events.addListener(name, this[name]);
-                        objectInterface[name] = this[name];
+                        self.events.addListener(key, this[key]);
+                        objectInterface[key] = this[key];
                     }
                 }
             }

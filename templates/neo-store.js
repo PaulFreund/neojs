@@ -25,8 +25,10 @@
 */
 //###################################################################################################
 
+var self = null // has to be set to this in init!, required for template access
+
 //###################################################################################################
-var self = null;
+
 module.exports = {    
     //===============================================================================================
     
@@ -53,9 +55,9 @@ module.exports = {
     // Init
     init: function(ready) {        
         self = this;
-        this.ueberDB = require('ueberDB');
-        this.util = require('util');
-        this.path = require('path');
+        self.ueberDB = require('ueberDB');
+        self.util = require('util');
+        self.path = require('path');
 
         var dbType = 'sqlite';
         var dbFile = self.config.file;
@@ -70,9 +72,9 @@ module.exports = {
             self.log('debug', 'sqlite3 is not available, using dirty backend');
         }
 
-        this.db = new this.ueberDB.database(dbType, {filename: dbFile});
+        self.db = new self.ueberDB.database(dbType, {filename: dbFile});
 
-        this.db.init(function(err) {
+        self.db.init(function(err) {
             if(err) {
                 self.signal('error', 'Cant Init', err);
                 self.log('error', err);
@@ -86,7 +88,6 @@ module.exports = {
     //===============================================================================================
     // Exit
     exit: function(ready) {
-        var self = this;
         ready();
     },
 

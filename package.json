@@ -2,7 +2,7 @@
     "name": "neojs",
 	"main": "neojs",
     "preferGlobal": false,
-    "version": "1.2.0",
+    "version": "1.2.1",
     "author": "Paul Freund",
     "description": "Node enhanced objects, event driven OOP pattern. Includes useful modules for different tasks.",
     "contributors": [

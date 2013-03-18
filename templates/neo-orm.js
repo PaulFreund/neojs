@@ -25,8 +25,10 @@
 */
 //###################################################################################################
 
+var self = null // has to be set to this in init!, required for template access
+
 //###################################################################################################
-var self;
+
 module.exports = {    
     //===============================================================================================
     
@@ -50,7 +52,7 @@ module.exports = {
     //===============================================================================================
     // Properties
     properties: [
-        { name: "tables", value: {} },
+        { key: "tables", value: {} },
         'persistence',
         'persistenceStore',
         'session',
@@ -63,30 +65,30 @@ module.exports = {
     //===============================================================================================
     // Init
     init: function(ready) {        
-        var self = this;
-        this.fs = require('fs');
-        this.path = require('path');
-        this.util = require('util');
-        this.persistence = require('persistencejs/lib/persistence').persistence;
-        this.persistence.debug = false;
+        self = this;
+        self.fs = require('fs');
+        self.path = require('path');
+        self.util = require('util');
+        self.persistence = require('persistencejs/lib/persistence').persistence;
+        self.persistence.debug = false;
         
-        if( this.config.type === 'mysql' ) {
-            this.persistenceStore = require('persistencejs/lib/persistence.store.mysql');
-            this.persistenceStore.config(
-                this.persistence, 
-                this.config.host, 
-                this.config.port, 
-                this.config.database, 
-                this.config.user, 
-                this.config.password
+        if( self.config.type === 'mysql' ) {
+            self.persistenceStore = require('persistencejs/lib/persistence.store.mysql');
+            self.persistenceStore.config(
+                self.persistence,
+                self.config.host,
+                self.config.port,
+                self.config.database,
+                self.config.user,
+                self.config.password
             );
         }
-        else if( this.config.type === 'sqlite' ) {
-            this.persistenceStore = require('persistencejs/lib/persistence.store.sqlite');
-            this.persistenceStore.config(this.persistence,this.path.resolve(this.config.path, this.config.file));
+        else if( self.config.type === 'sqlite' ) {
+            self.persistenceStore = require('persistencejs/lib/persistence.store.sqlite');
+            self.persistenceStore.config(self.persistence,self.path.resolve(self.config.path, self.config.file));
         }
 
-        this.session = this.persistenceStore.getSession();
+        self.session = self.persistenceStore.getSession();
         self.loadSchema(self.config.schema);
 
         // Sync to db
@@ -101,12 +103,11 @@ module.exports = {
     //===============================================================================================
     // Exit
     exit: function(ready) {
-        var self = this;
 
         // flush latest changes
-        this.session.flush();
-        this.session.flush();
-        this.session.flush(function() {
+        self.session.flush();
+        self.session.flush();
+        self.session.flush(function() {
             self.session.close();
             ready();
         });
@@ -118,7 +119,6 @@ module.exports = {
         ////-----------------------------------------------------------------------------------------
         //  Create tables from schema 
         function loadSchema(schema) {
-            var self = this;
             
 	        if( !schema ) {
                 self.log('debug', 'Schema invalid');
@@ -133,7 +133,7 @@ module.exports = {
             if( schema.tables ) {
                 for( var table in schema.tables ) {
                     if( schema.tables.hasOwnProperty(table) ) {
-                        this.tables[table] = this.persistence.define(table, schema.tables[table]);
+                        self.tables[table] = self.persistence.define(table, schema.tables[table]);
                     }
                 }
             }
@@ -142,12 +142,12 @@ module.exports = {
             if( schema.relations ) { 
                 for( var relation in schema.relations ) {
                     if( schema.relations.hasOwnProperty(relation) ) {
-                        if( this.tables[schema.relations[relation].table]   &&
-                            this.tables[schema.relations[relation].as]      ) {
+                        if( self.tables[schema.relations[relation].table]   &&
+                            self.tables[schema.relations[relation].as]      ) {
                 
-                            this.tables[schema.relations[relation].table].hasMany(
+                            self.tables[schema.relations[relation].table].hasMany(
                                 schema.relations[relation].has,
-                                this.tables[schema.relations[relation].as],
+                                self.tables[schema.relations[relation].as],
                                 schema.relations[relation].id
                             );
                         }
@@ -161,15 +161,15 @@ module.exports = {
         ////-----------------------------------------------------------------------------------------
         //  Return schema
         function getSchema() {
-            return this.schema;
+            return self.schema;
         },
 
         ////-----------------------------------------------------------------------------------------
         //  Create object
         function Create(name) {
-            if( this.tables[name] ) {
-                var newobj =  new this.tables[name](this.session);
-                this.session.add(newobj);
+            if( self.tables[name] ) {
+                var newobj =  new self.tables[name](self.session);
+                self.session.add(newobj);
                 return newobj;
             }
             return undefined;
@@ -178,9 +178,8 @@ module.exports = {
         ////-----------------------------------------------------------------------------------------
         //  Get Tables object
         function Read(name, what, cb) {
-            var self = this;
-            if( this.tables && this.tables[name]) {                
-                var allvars = this.tables[name].all(this.session);
+            if( self.tables && self.tables[name]) {
+                var allvars = self.tables[name].all(self.session);
                 
                 if( what === 'all' ) {
                     allvars.list(null, function (results) {
@@ -196,14 +195,14 @@ module.exports = {
         ////-----------------------------------------------------------------------------------------
         //  Get Tables object
         function Update(name, what, cb) {
-            this.log('debug', 'UPDATE');
+            self.log('debug', 'UPDATE');
             cb();
         },
         
         ////-----------------------------------------------------------------------------------------
         //  Get Tables object
         function Delete(name, what, cb) {
-            this.log('debug', 'DELETE');
+            self.log('debug', 'DELETE');
             cb();
         },
         

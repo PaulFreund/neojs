@@ -25,11 +25,13 @@
 */
 //###################################################################################################
 
+var self = null // has to be set to this in init!, required for template access
+
 //###################################################################################################
 
 module.exports = {    
     //===============================================================================================
-    
+
     //===============================================================================================
     // Name
     templateName: 'irc',
@@ -52,17 +54,17 @@ module.exports = {
     //===============================================================================================
     // Init
     init: function(ready) {        
-        var self = this;
+        self = this;
 
-        this.irc = require('irc');
-        this.server = new this.irc.Client(
-            self.config.host, 
-            self.config.name, 
+        self.irc = require('irc');
+        self.server = new self.irc.Client(
+            self.config.host,
+            self.config.name,
             {channels: [self.config.channel]}
         );
         
         // Events
-        this.server.addListener('message', function(from, to, message) {
+        self.server.addListener('message', function(from, to, message) {
             if( message !== undefined )
             {          
                 // Remove IRC Coloring :X \x80-\xFF
@@ -75,31 +77,31 @@ module.exports = {
             }
         });
     
-        this.server.addListener('names', function(channel, names) {
+        self.server.addListener('names', function(channel, names) {
             self.signal('names', channel, names);
         });  
         
-        this.server.addListener('topic', function(channel,topic, nick) {
+        self.server.addListener('topic', function(channel,topic, nick) {
             self.signal('topic', channel, topic, nick);
         });
     
-        this.server.addListener('join', function(channel,nick) {
+        self.server.addListener('join', function(channel,nick) {
             self.signal('join', channel, nick);
         });
     
-        this.server.addListener('part', function(channel,nick) {
+        self.server.addListener('part', function(channel,nick) {
             self.signal('part', channel, nick);
         });
         
-        this.server.addListener('quit', function(nick, reason, channels) {
+        self.server.addListener('quit', function(nick, reason, channels) {
             self.signal('quit', channels, nick);
         });
         
-        this.server.addListener('kick', function(channel,nick) {
+        self.server.addListener('kick', function(channel,nick) {
             self.signal('kick', channel, nick);
         });
     
-        this.server.addListener('nick', function(oldnick,newnick, channels) {
+        self.server.addListener('nick', function(oldnick,newnick, channels) {
             self.signal('nick', oldnick, newnick, channels);
         });
 
@@ -109,7 +111,6 @@ module.exports = {
     //===============================================================================================
     // Exit
     exit: function(ready) {
-        var self = this;
         ready();
     },
 
@@ -124,25 +125,25 @@ module.exports = {
         ////-----------------------------------------------------------------------------------------
         // Send an IRC Command
         function send() {     
-            this.server.send.apply(this,arguments);
+            self.server.send.apply(self,arguments);
         },
         
         ////-----------------------------------------------------------------------------------------
         // Send an IRC message
         function say(to, message) {     
-            this.server.say(to, message);               
+            self.server.say(to, message);
         },
         
          ////-----------------------------------------------------------------------------------------
         // Send an IRC ACTION!
         function action(to, message) {     
-            this.server.action(to, message);               
+            self.server.action(to, message);
         },       
         
          ////-----------------------------------------------------------------------------------------
         // Sets the channel topic
         function settopic(channel, message) {     
-            this.server.send('TOPIC', channel, message);               
+            self.server.send('TOPIC', channel, message);
         } 
     ],
     

@@ -26,8 +26,10 @@
 */
 //###################################################################################################
 
+var self = null // has to be set to this in init!, required for template access
+
 //###################################################################################################
-var self;
+
 module.exports = {    
     //===============================================================================================
     
@@ -58,24 +60,24 @@ module.exports = {
     init: function(ready) {        
         self = this;
 
-        this.xmpp = require('node-xmpp');
-        this.util = require('util');
+        self.xmpp = require('node-xmpp');
+        self.util = require('util');
         
-        this.server = new this.xmpp.Client( {
+        self.server = new self.xmpp.Client( {
             jid     :self.config.jid,
             password:self.config.password,
             host    :self.config.host,
             port    :self.config.port
         });
 
-        this.presence = new this.xmpp.Element('presence', {});
-        this.presence.c('show').t('chat').up().c('status').t('Here for your service');
+        self.presence = new self.xmpp.Element('presence', {});
+        self.presence.c('show').t('chat').up().c('status').t('Here for your service');
         
         // Events
-        this.server.on('error' , this.onError);       
-        this.server.on('stanza', this.onStanza);
+        self.server.on('error' , self.onError);
+        self.server.on('stanza', self.onStanza);
         
-        this.server.on('online', function() {
+        self.server.on('online', function() {
             self.server.send(self.presence);
             
             // Request the Rooster
@@ -90,7 +92,6 @@ module.exports = {
     //===============================================================================================
     // Exit
     exit: function(ready) {
-        var self = this;
         ready();
     },
 
