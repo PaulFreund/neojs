@@ -43,7 +43,8 @@ module.exports = {
         'jid',
         'password',
         'host',
-        'port'
+        'port',
+        { key: 'silent', value: true }
     ],
     
     //===============================================================================================
@@ -71,13 +72,16 @@ module.exports = {
         });
 
         self.presence = new self.xmpp.Element('presence', {});
-        self.presence.c('show').t('chat').up().c('status').t('Here for your service');
-        
+
+        if( !self.config.silent )
+            self.presence.c('show').t('chat').up().c('status').t('Here for your service');
+
         // Events
         self.server.on('error' , self.onError);
         self.server.on('stanza', self.onStanza);
         
-        self.server.on('online', function() {
+        self.server.on('online', function()
+        {
             self.server.send(self.presence);
             
             // Request the Rooster

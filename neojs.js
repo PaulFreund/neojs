@@ -544,7 +544,7 @@ module.exports = (function () {
                             var me = key;
                             return function()
                             {
-                                return self[me].apply(self,arguments);
+                                return self[me].apply(this,arguments);
                             };
                         })();
 
