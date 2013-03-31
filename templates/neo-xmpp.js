@@ -53,7 +53,8 @@ module.exports = {
         'xmpp',
         'util',
         'server',
-        'presence'
+        'presence',
+        { key: 'roster', value: {}}
     ],
     
     //===============================================================================================
@@ -85,7 +86,7 @@ module.exports = {
             self.server.send(self.presence);
             
             // Request the Rooster
-            var iq = new self.xmpp.Element('iq', {type:'get', id: 'i2xreq'});
+            var iq = new self.xmpp.Element('iq', {type:'get', id: 'neoxmppreq'});
             iq.c('query', {'xmlns': 'jabber:iq:roster'});
             self.server.send(iq);  
             
@@ -102,7 +103,12 @@ module.exports = {
     //===============================================================================================
     // Methods
     methods: [
-        
+        ////-----------------------------------------------------------------------------------------
+        // Returns bare jid
+        function jidToBare(jid) {
+            return jid.split("/")[0];
+        },
+
         ////-----------------------------------------------------------------------------------------
         // If an error occurs
         function onError(error) {
@@ -119,9 +125,46 @@ module.exports = {
             }
                      
             // Retrieve the rooster on connect ( or request )
-            if( stanza.name === 'iq' ) {
+            if( stanza.name === 'iq' && stanza.attrs.id && stanza.attrs.id === 'neoxmppreq')
+            {
+                for(var idxChild in stanza.children)
+                {
+                    if( !stanza.children.hasOwnProperty(idxChild) )
+                        continue;
+
+                    var thisChild = stanza.children[idxChild];
+                    if( thisChild.name && thisChild.name === 'query')
+                    {
+                        for(var idxItem in thisChild.children)
+                        {
+                            if( !thisChild.children.hasOwnProperty(idxItem) )
+                                continue;
+
+                            var thisItem = thisChild.children[idxItem];
+
+                            self.roster[self.jidToBare(thisItem.attrs.jid)] = {};
+                            self.roster[self.jidToBare(thisItem.attrs.jid)].name = thisItem.attrs.name;
+                        }
+                    }
+                }
             }
-                     
+
+            // Prepare roster fields
+            var friendlyName = undefined;
+            if( ( stanza.name === 'message' || stanza.name === 'presence' ) && stanza.attrs.from )
+            {
+                if( self.roster[self.jidToBare(stanza.attrs.from)] === undefined)
+                    self.roster[self.jidToBare(stanza.attrs.from)] = {};
+
+                //if( self.roster[self.jidToBare(stanza.attrs.from)].online === undefined )
+                //    self.roster[self.jidToBare(stanza.attrs.from)].online = false;
+
+                friendlyName = self.jidToBare(stanza.attrs.from);
+                if( self.roster[self.jidToBare(stanza.attrs.from)].name !== undefined )
+                    friendlyName = self.roster[self.jidToBare(stanza.attrs.from)].name;
+            }
+
+
             // Message from one of the clients
             if (stanza.name === 'message') {
                 for(var child in stanza.children) {
@@ -132,10 +175,10 @@ module.exports = {
                             var message = body.children.join('');
                             
                             if( message.charAt(0) === '!') {
-                                self.signal('command', stanza.attrs.from, stanza.attrs.to, message);
+                                self.signal('command', stanza.attrs.from, stanza.attrs.to, message, friendlyName);
                             }
 		                    else {
-                                self.signal('message', stanza.attrs.from, stanza.attrs.to, message);
+                                self.signal('message', stanza.attrs.from, stanza.attrs.to, message, friendlyName);
                             }
                         }
                     }
@@ -143,19 +186,31 @@ module.exports = {
             }  
                  
             // Presence event
-            if( stanza.is('presence')) {
-                
-                if( stanza.attrs.type === undefined ) {
-                    self.signal('online', stanza.attrs.from);
+            if( stanza.is('presence'))
+            {
+                if( stanza.attrs.type === undefined )
+                {
+                    //if( self.roster[self.jidToBare(stanza.attrs.from)].online !== true )
+                    //{
+                    //    self.roster[self.jidToBare(stanza.attrs.from)].online = true;
+                        self.signal('online', stanza.attrs.from, friendlyName);
+                    //}
                 }
-                else if ( stanza.attrs.type === 'unavailable') {
-                    self.signal('offline', stanza.attrs.from);
+                else if ( stanza.attrs.type === 'unavailable')
+                {
+                    //if( self.roster[self.jidToBare(stanza.attrs.from)].online !== false )
+                    //{
+                    //    self.roster[self.jidToBare(stanza.attrs.from)].online = false;
+                        self.signal('offline', stanza.attrs.from, friendlyName);
+                    //}
                 }
-                else if( stanza.attrs.type === 'subscribe' ) {
-                    self.signal('subscribe', stanza.attrs.from);
+                else if( stanza.attrs.type === 'subscribe' )
+                {
+                    self.signal('subscribe', stanza.attrs.from, friendlyName);
                 }
-                else if( stanza.attrs.type === 'unsubscribe') {
-                    self.signal('unsubscribe', stanza.attrs.from);
+                else if( stanza.attrs.type === 'unsubscribe')
+                {
+                    self.signal('unsubscribe', stanza.attrs.from, friendlyName);
                 }
                 else {
                     self.signal('presence', stanza.attrs.from, stanza.attrs.to, stanza);

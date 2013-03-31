@@ -183,7 +183,7 @@ module.exports = {
                         {
                             msg.on('headers', function(hdrs) {
                                 self.signal(
-                                    'received',
+                                    'message',
                                     hdrs.from.join(', '),
                                     hdrs.to.join(', '),
                                     hdrs.date.join(', '),

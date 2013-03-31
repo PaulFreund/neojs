@@ -128,7 +128,7 @@ module.exports = {
                 {
                     var thisArticle = content.items[idxNewItems];
                     self.signal(
-                        'update',
+                        'message',
                         thisArticle.author,
                         thisArticle.published_at,
                         thisArticle.url,
