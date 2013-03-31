@@ -97,22 +97,29 @@ module.exports = {
     //===============================================================================================
     // Methods
     methods: [
-
+        ////-----------------------------------------------------------------------------------------
+        // New mail has been received
         function onMail(numNewMsgs)
         {
             self.fetchRecentMails(numNewMsgs);
         },
 
+        ////-----------------------------------------------------------------------------------------
+        // Connection has been closed
         function onClose(hadError)
         {
             self.Reconnect();
         },
 
+        ////-----------------------------------------------------------------------------------------
+        // Connection has ended
         function onEnd()
         {
             self.Reconnect();
         },
 
+        ////-----------------------------------------------------------------------------------------
+        // Error occured
         function onError(err)
         {
             self.log('error', err);
@@ -120,6 +127,8 @@ module.exports = {
             self.Reconnect();
         },
 
+        ////-----------------------------------------------------------------------------------------
+        // Connect to mailbox
         function onCallbackConnect(err)
         {
             self.connection.openBox(self.config.mailbox, true, function(err, mailbox)
@@ -135,6 +144,8 @@ module.exports = {
             });
         },
 
+        ////-----------------------------------------------------------------------------------------
+        // Reconnect
         function Reconnect()
         {
             self.retryCount++;
@@ -156,11 +167,15 @@ module.exports = {
             }
         },
 
+        ////-----------------------------------------------------------------------------------------
+        // Connect to server
         function Connect()
         {
             self.connection.connect(self.onCallbackConnect);
         },
 
+        ////-----------------------------------------------------------------------------------------
+        // Fetch new mails and notify about them
         function fetchRecentMails(count)
         {
             if( self.mailbox === undefined )

@@ -78,13 +78,16 @@ module.exports = {
     //===============================================================================================
     // Methods
     methods: [
+        ////-----------------------------------------------------------------------------------------
+        // Iterate over all feeds and look for new articles
         function checkFeeds()
         {
-
             for(var idx = 0; idx < self.config.feeds.length; idx++)
                 self.parseFeed(idx, self.config.feeds[idx]);
         },
 
+        ////-----------------------------------------------------------------------------------------
+        // Check a specific feed and notify if new articles are available
         function parseFeed(thisIdx, thisFeed)
         {
             self.parser.parseURL(thisFeed, {}, function(err, content)

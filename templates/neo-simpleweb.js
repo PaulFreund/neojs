@@ -105,17 +105,23 @@ module.exports = {
     //===============================================================================================
     // Slots
     slots: [
+        ////-----------------------------------------------------------------------------------------
+        // Register a URL path with a callback which handles the path
         function registerPath(path, callback)
         {
             self.app.get(path, callback);
         },
 
+        ////-----------------------------------------------------------------------------------------
+        // Register a function that can be called by web clients
         function registerClientFunction(name, callback)
         {
             if( self.everyone && self.everyone.now && !self.everyone.now[name] )
                 self.everyone.now[name] = callback;
         },
 
+        ////-----------------------------------------------------------------------------------------
+        // Call a function on all clients that have it defined
         function callClientFunction(name, arguments)
         {
             if( self.everyone && self.everyone.now && self.everyone.now[name] )
