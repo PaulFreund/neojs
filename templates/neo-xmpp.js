@@ -113,14 +113,13 @@ module.exports = {
         // If an error occurs
         function onError(error) {
             self.log('error', error);
-            //process.exit(1);            
+            self.signal('error', self.util.inspect(error));
         },
         
         ////-----------------------------------------------------------------------------------------
         // Stanza ( abstract message from server ) arrives // http://xmpp.org/rfcs/rfc6121.html
         function onStanza(stanza) {
             if(stanza.attrs.type === 'error') {
-                self.signal('error', 'stanza error');
                 self.onError('Got an error from XMPP server');
             }
                      
