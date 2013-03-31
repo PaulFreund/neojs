@@ -40,7 +40,9 @@ module.exports = {
     // Config
     config: [
         'uri',
-        { key: 'writeInterval', value: 10000 }
+        { key: 'writeInterval', value: null },
+        { key: 'cache', value: null },
+        { key: 'json', value: null }
     ],
     
     //===============================================================================================
@@ -60,20 +62,14 @@ module.exports = {
         self.util = require('util');
         self.path = require('path');
 
-        var dbType = 'sqlite';
-        var dbFile = self.config.uri;
-
-        // If sqlite is not available, use dirty
-        try {
-            require('sqlite3');
-        }
-        catch(err) {
-            dbType = 'dirty';
-            dbFile = 'dirty_'+self.config.uri;
-            self.log('debug', 'sqlite3 is not available, using dirty backend');
+        var dbConfig = self.getDatabaseConfig(self.config.uri);
+        if( dbConfig === undefined )
+        {
+            self.log('error', 'Loading store with uri failed: '+self.config.uri);
+            return;
         }
 
-        self.db = new self.ueberDB.database(dbType, {filename: dbFile}, {writeInterval: self.config.writeInterval});
+        self.db = new self.ueberDB.database(dbConfig.type, dbConfig.databaseSettings, dbConfig.wrapperSettings);
 
         self.db.init(function(err) {
             if(err) {
@@ -95,6 +91,189 @@ module.exports = {
     //===============================================================================================
     // Methods
     methods: [
+        function getDatabaseConfig(uri)
+        {
+            var dbType = undefined;
+            var dbName = undefined;
+            var dbPath = undefined;
+            var dbPort = undefined;
+            var dbUser = undefined;
+            var dbPass = undefined;
+
+            // Split [type]://[rest]
+            var uriParts = uri.split('://');
+            if( uriParts.length != 2)
+                return undefined;
+
+            dbType = uriParts[0];
+
+            // Split [hostinformation]/[databasename]
+            var locationParts = uriParts[1].split('/');
+            if( locationParts.length < 1 || locationParts.length > 2 )
+                return undefined
+
+            // Get name
+            if( locationParts.length === 2)
+                dbName = locationParts[1];
+
+            // Split [authinfo]@[pathinfo]
+            var hostParts = locationParts[0].split('@');
+            if( hostParts.length < 1 || hostParts.length > 2 )
+                return undefined;
+
+            var pathPart = undefined;
+            if( hostParts.length === 2 ) // auth and host
+            {
+                pathPart = hostParts[1];
+
+                // Split [username]:[password]
+                var authParts = hostParts[0].split(':');
+                if( authParts.length < 1 || authParts.length > 2 )
+                    return undefined;
+
+                dbUser = authParts[0];
+
+                if( authParts.length === 2 )
+                    dbPass = authParts[1];
+            }
+            else // only host
+            {
+                pathPart = hostParts[0];
+            }
+
+            // Split [pathname]:[port]
+            var pathParts = pathPart.split(':');
+            if( pathParts.length < 1 || pathParts.length > 2 )
+                return undefined;
+
+            dbPath = pathParts[0];
+
+            if( pathParts.length === 2 )
+                dbPort = pathParts[1];
+
+
+            // Create database configuration objects
+            var databaseSettings = {};
+            switch( dbType )
+            {
+                //---------------------------------------------------------------------------
+                case 'sqlite':
+                    if( !dbPath ) { return undefined; }
+
+                    // Workaround so application doesn't shut down
+                    try { require('sqlite3'); } catch(err) { self.log('error', err); return undefined; }
+
+                    databaseSettings.filename = dbPath;
+                    break;
+
+                //---------------------------------------------------------------------------
+                case 'dirty':
+                    if( !dbPath ) { return undefined; }
+
+                    databaseSettings.filename = dbPath;
+                    break;
+
+                //---------------------------------------------------------------------------
+                case 'mysql':
+                    if( !dbPath || !dbUser || !dbPass || !dbName ) { return undefined; }
+
+                    databaseSettings.host = dbPath;
+                    databaseSettings.user = dbUser;
+                    databaseSettings.password = dbPass;
+                    databaseSettings.database = dbName;
+
+                    if( dbPort )
+                        databaseSettings.port = dbPort;
+                    break;
+
+                //---------------------------------------------------------------------------
+                case 'postgres':
+                    if( !dbPath || !dbUser || !dbPass || !dbName ) { return undefined; }
+
+                    databaseSettings.host = dbPath;
+                    databaseSettings.user = dbUser;
+                    databaseSettings.password = dbPass;
+                    databaseSettings.database = dbName;
+
+                    if( dbPort )
+                        databaseSettings.port = dbPort;
+                    break;
+
+                //---------------------------------------------------------------------------
+                case 'leveldb':
+                    if( !dbPath ) { return undefined; }
+
+                    // Workaround so application doesn't shut down
+                    try { require('leveldb'); } catch(err) { self.log('error', err); return undefined; }
+
+                    databaseSettings.directory = dbPath;
+                    break;
+
+                //---------------------------------------------------------------------------
+                case 'mongo':
+                    if( !dbPath || !dbUser || !dbPass || !dbName || !dbPort ) { return undefined; }
+
+                    databaseSettings.host = dbPath;
+                    databaseSettings.user = dbUser;
+                    databaseSettings.password = dbPass;
+                    databaseSettings.dbname = dbName;
+                    databaseSettings.port = dbPort;
+
+                    // I know this is not right
+                    databaseSettings.collectionName = dbName;
+                    self.log('error', 'Warning, monogodb settings not properly implemented!')
+                    break;
+
+                //---------------------------------------------------------------------------
+                case 'redis':
+                    if( !dbPath  || !dbPass || !dbName || !dbPort ) { return undefined; }
+
+                    databaseSettings.host = dbPath;
+                    databaseSettings.password = dbPass;
+                    databaseSettings.database = dbName;
+                    databaseSettings.port = dbPort;
+
+                    // I know this is not enough
+                    databaseSettings.client_options = {};
+                    break;
+
+                //---------------------------------------------------------------------------
+                case 'couch':
+                    if( !dbPath || !dbUser || !dbPass || !dbName ) { return undefined; }
+
+                    databaseSettings.host = dbPath;
+                    databaseSettings.user = dbUser;
+                    databaseSettings.pass = dbPass;
+                    databaseSettings.database = dbName;
+                    databaseSettings.maxListeners = undefined;
+                    databaseSettings.port = dbPort;
+                    break;
+
+                //---------------------------------------------------------------------------
+                case 'cassandra':
+                    // Not needed at the moment
+                    self.log('error', 'Warning, cassandra settings not implemented!')
+                    return undefined;
+                    break;
+            }
+
+            // Create wrapper settings
+            var wrapperSettings = {};
+            if( self.config.writeInterval !== null)
+                wrapperSettings.writeInterval = self.config.writeInterval;
+
+            if( self.config.cache !== null)
+                wrapperSettings.cache = self.config.cache;
+
+            if( self.config.json !== null)
+                wrapperSettings.json = self.config.json;
+
+            return {
+                type: dbType,
+                databaseSettings: databaseSettings,
+                wrapperSettings: wrapperSettings
+            };
+        }
     ],
     
     //===============================================================================================

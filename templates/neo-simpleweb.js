@@ -41,7 +41,10 @@ module.exports = {
     config: [
         "host",
         "port",
-        "htdocs"
+        "htdocs",
+        { key: "authentication", value: false },
+        "username",
+        "password"
     ],
 
     //===============================================================================================
@@ -51,7 +54,7 @@ module.exports = {
         "httpServer",
         "express",
         "now",
-        "server",
+        "app",
         "everyone"
     ],
 
@@ -63,39 +66,29 @@ module.exports = {
         self.express = require('express');
         self.now = require('now');
 
-        self.server = self.express();
+        self.app = self.express();
 
-        self.httpServer = self.http.createServer(self.server);
+        self.httpServer = self.http.createServer(self.app);
         self.httpServer.listen(self.config.port);
 
         self.everyone = self.now.initialize(self.httpServer);
 
-        self.server.configure(function(){
-            self.server.use(self.express.methodOverride());
-            self.server.use(self.express.bodyParser());
-            self.server.use(self.express.static(process.cwd()+'/'+self.config.htdocs));
-            self.server.use(self.express.errorHandler({
+        self.app.configure(function()
+        {
+            if( self.config.authentication )
+                self.app.use(self.express.basicAuth(self.config.username, self.config.password));
+
+            self.app.use(self.app.router);
+            self.app.use(self.express.methodOverride());
+            self.app.use(self.express.bodyParser());
+            self.app.use(self.express.static(process.cwd()+'/'+self.config.htdocs));
+            self.app.use(self.express.errorHandler({
                 dumpExceptions: true,
                 showStack: true
             }));
 
-            self.server.use(self.server.router);
-
-            self.everyone.now.storeGet = function(path, callback){
-                self.events.emit('store.get', path, callback);
-            };
-
-            self.everyone.now.storeSet = function(path, object, callback) {
-                self.events.emit('store.set', path, object, callback);
-            };
-
-            self.everyone.now.storeRemove = function(name, callback) {
-                self.events.emit('store.remove', name, callback);
-            };
-
             ready();
         });
-
     },
 
     //===============================================================================================
@@ -112,17 +105,22 @@ module.exports = {
     //===============================================================================================
     // Slots
     slots: [
-        function notify(type, data)
-        {
-            if( self.everyone && self.everyone.now && self.everyone.now.onNotification )
-                self.everyone.now.onNotification(type, data);
-        },
         function registerPath(path, callback)
         {
-            self.server.get(path, callback);
+            self.app.get(path, callback);
+        },
 
+        function registerClientFunction(name, callback)
+        {
+            if( self.everyone && self.everyone.now && !self.everyone.now[name] )
+                self.everyone.now[name] = callback;
+        },
+
+        function callClientFunction(name, arguments)
+        {
+            if( self.everyone && self.everyone.now && self.everyone.now[name] )
+                self.everyone.now[name].apply(this, arguments);
         }
-
     ],
 
     //===============================================================================================
