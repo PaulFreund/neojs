@@ -39,7 +39,8 @@ module.exports = {
     //===============================================================================================
     // Config
     config: [
-        'file'
+        'uri',
+        { key: 'writeInterval', value: 10000 }
     ],
     
     //===============================================================================================
@@ -60,7 +61,7 @@ module.exports = {
         self.path = require('path');
 
         var dbType = 'sqlite';
-        var dbFile = self.config.file;
+        var dbFile = self.config.uri;
 
         // If sqlite is not available, use dirty
         try {
@@ -68,11 +69,11 @@ module.exports = {
         }
         catch(err) {
             dbType = 'dirty';
-            dbFile = 'dirty_'+self.config.file;
+            dbFile = 'dirty_'+self.config.uri;
             self.log('debug', 'sqlite3 is not available, using dirty backend');
         }
 
-        self.db = new self.ueberDB.database(dbType, {filename: dbFile});
+        self.db = new self.ueberDB.database(dbType, {filename: dbFile}, {writeInterval: self.config.writeInterval});
 
         self.db.init(function(err) {
             if(err) {

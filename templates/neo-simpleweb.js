@@ -64,20 +64,11 @@ module.exports = {
         self.now = require('now');
 
         self.server = self.express();
-        self.httpServer = self.http.createServer(self.server);
 
-        self.server.listen(self.config.port);
+        self.httpServer = self.http.createServer(self.server);
+        self.httpServer.listen(self.config.port);
 
         self.everyone = self.now.initialize(self.httpServer);
-
-
-        self.everyone.on('join', function(){
-            self.signal('onWebJoin', self.user);
-        });
-
-        self.server.get("/", function(req, res) {
-            res.redirect("/index.html");
-        });
 
         self.server.configure(function(){
             self.server.use(self.express.methodOverride());
@@ -90,26 +81,17 @@ module.exports = {
 
             self.server.use(self.server.router);
 
-            // Add interfaces to store
-            if( self.neo.store )
-            {
-                self.everyone.now.store = {};
+            self.everyone.now.storeGet = function(path, callback){
+                self.events.emit('store.get', path, callback);
+            };
 
-                self.everyone.now.store.get = function(path, callback)
-                {
-                    self.events.emit('store.get', path, callback);
-                };
+            self.everyone.now.storeSet = function(path, object, callback) {
+                self.events.emit('store.set', path, object, callback);
+            };
 
-                self.everyone.now.store.set = function(path, object, callback)
-                {
-                    self.events.emit('store.set', path, object, callback);
-                };
-
-                self.everyone.now.store.remove = function(name, callback)
-                {
-                    self.events.emit('store.remove', name, callback);
-                };
-            }
+            self.everyone.now.storeRemove = function(name, callback) {
+                self.events.emit('store.remove', name, callback);
+            };
 
             ready();
         });
@@ -132,9 +114,15 @@ module.exports = {
     slots: [
         function notify(type, data)
         {
-            if( self.everyone)
-                self.everyone.onNotification(type, data);
+            if( self.everyone && self.everyone.now && self.everyone.now.onNotification )
+                self.everyone.now.onNotification(type, data);
+        },
+        function registerPath(path, callback)
+        {
+            self.server.get(path, callback);
+
         }
+
     ],
 
     //===============================================================================================

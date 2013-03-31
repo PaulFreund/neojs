@@ -60,8 +60,7 @@ module.exports = {
         self.util = require('util');
         self.parser = require('rssparser');
 
-        var idxFeed = 0;
-        for(idxFeed = 0; idxFeed < self.config.feeds.length; idxFeed++)
+        for(var idxFeed = 0; idxFeed < self.config.feeds.length; idxFeed++)
             self.feedTimes[idxFeed] = null;
 
         self.intervalObject = setInterval(self.checkFeeds, self.config.interval);
@@ -127,12 +126,17 @@ module.exports = {
                 for( var idxNewItems = (cntNewItems - 1); idxNewItems >= 0 ; idxNewItems--)
                 {
                     var thisArticle = content.items[idxNewItems];
+
+                    var thisTitle = thisArticle.title;
+                    if( thisArticle.author !== undefined )
+                        thisTitle = '[' + thisArticle.author + '] ' + thisArticle.title;
+
                     self.signal(
                         'message',
-                        thisArticle.author,
+                        content.title,
                         thisArticle.published_at,
                         thisArticle.url,
-                        thisArticle.title,
+                        thisTitle,
                         thisArticle.summary
                     );
                 }

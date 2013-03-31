@@ -189,10 +189,27 @@ module.exports = {
             {
                 if( stanza.attrs.type === undefined )
                 {
+                    var show = undefined;
+                    var status = undefined;
+
+                    for(var idxChild in stanza.children)
+                    {
+                        if( !stanza.children.hasOwnProperty(idxChild) )
+                            continue;
+
+                        var thisChild = stanza.children[idxChild];
+                        if( thisChild.name && thisChild.name === 'show' && thisChild.children.length > 0 )
+                            show = thisChild.children[0];
+
+                        if( thisChild.name && thisChild.name === 'status' && thisChild.children.length > 0)
+                            status = thisChild.children[0];
+                    }
+
+
                     //if( self.roster[self.jidToBare(stanza.attrs.from)].online !== true )
                     //{
                     //    self.roster[self.jidToBare(stanza.attrs.from)].online = true;
-                        self.signal('online', stanza.attrs.from, friendlyName);
+                        self.signal('online', stanza.attrs.from, friendlyName, show, status);
                     //}
                 }
                 else if ( stanza.attrs.type === 'unavailable')
