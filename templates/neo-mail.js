@@ -70,20 +70,6 @@ module.exports = {
         self.imap = require('imap');
         self.util = require('util');
 
-        self.connection = new self.imap({
-            user: self.config.user,
-            password: self.config.password,
-            host: self.config.host,
-            port: self.config.port,
-            secure: self.config.secure
-        });
-
-        //self.connection.on('alert', self.onAlert);
-        self.connection.on('mail', self.onMail);
-        self.connection.on('close', self.onClose);
-        self.connection.on('end', self.onEnd);
-        self.connection.on('error', self.onError);
-
         self.Connect();
 
         ready();
@@ -171,17 +157,30 @@ module.exports = {
                 return;
             }
 
+            self.Connect();
+        },
+
+        ////-----------------------------------------------------------------------------------------
+        // Disconnect from server
+        function Disconnect(callback)
+        {
             self.mailbox = undefined;
 
-            if( self.connection.connected )
+            // If there already is a connection and it is connected, logout
+	    if( self.connection !== undefined && self.connection !== null && self.connection.connected)
             {
-                self.connection.logout(function() {
-                    self.Connect();
+                self.connection.logout(function() 
+                {
+                    self.connection = undefined;
+                    if( callback )
+                        callback();
                 });
             }
             else
             {
-                self.Connect();
+                self.connection = undefined;
+                if( callback )
+                    callback();
             }
         },
 
@@ -189,7 +188,26 @@ module.exports = {
         // Connect to server
         function Connect()
         {
-            self.connection.connect(self.onCallbackConnect);
+            self.Disconnect(function() 
+            {
+                // Create connection
+                self.connection = new self.imap({
+                    user: self.config.user,
+                    password: self.config.password,
+                    host: self.config.host,
+                    port: self.config.port,
+                    secure: self.config.secure
+                });
+    
+                // Set event listeners
+                self.connection.on('mail', self.onMail);
+                self.connection.on('close', self.onClose);
+                self.connection.on('end', self.onEnd);
+                self.connection.on('error', self.onError);
+    
+                // Call connect for connection
+                self.connection.connect(self.onCallbackConnect);
+            });
         },
 
         ////-----------------------------------------------------------------------------------------
