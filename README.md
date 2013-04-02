@@ -79,11 +79,12 @@ Because of the nature of "this" in js, you always need to define your own refere
 The framework adds the following interface to every instance ( available through this in init and self everywhere else )
 
     self.neo                    // Access to the object manager
-    self.log(type, message)     // Log function, type can be 'debug' or 'error'
+    self.error(errObj/string)   // Log to console and emit to events with [ID].error ([ID]=config.id or 'neo' if global)
+    self.debug(dbgObj/string)   // Log to console if debug messages are enabled
     self.events                 // Access to the event bus
     self.templateName           // The template name
-    self.config                 // The configuration object, including all predefined and supplied values ( including id )
-    self.signal(command, ...)   // Emits a signal to the eventbus with [ID].command and parameters ([ID] = config.id)
+    self.config                 // Configuration object, including all predefined and supplied values ( including id )
+    self.signal(command, ...)   // Emits a signal to events with [ID].command and parameters ([ID]=config.id)
     
 ### Structure ###
 

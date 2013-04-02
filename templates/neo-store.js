@@ -65,7 +65,7 @@ module.exports = {
         var dbConfig = self.getDatabaseConfig(self.config.uri);
         if( dbConfig === undefined )
         {
-            self.log('error', 'Loading store with uri failed: '+self.config.uri);
+            self.error('Loading store with uri failed: '+self.config.uri);
             return;
         }
 
@@ -73,8 +73,7 @@ module.exports = {
 
         self.db.init(function(err) {
             if(err) {
-                self.signal('error', 'Cant Init', err);
-                self.log('error', err);
+                self.error('Cant init' + self.util.inspect(err));
             } else {
                 self.signal('ready');
                 ready();
@@ -163,7 +162,7 @@ module.exports = {
                     if( !dbPath ) { return undefined; }
 
                     // Workaround so application doesn't shut down
-                    try { require('sqlite3'); } catch(err) { self.log('error', err); return undefined; }
+                    try { require('sqlite3'); } catch(err) { self.error(err); return undefined; }
 
                     databaseSettings.filename = dbPath;
                     break;
@@ -206,7 +205,7 @@ module.exports = {
                     if( !dbPath ) { return undefined; }
 
                     // Workaround so application doesn't shut down
-                    try { require('leveldb'); } catch(err) { self.log('error', err); return undefined; }
+                    try { require('leveldb'); } catch(err) { self.error(err); return undefined; }
 
                     databaseSettings.directory = dbPath;
                     break;
@@ -223,7 +222,7 @@ module.exports = {
 
                     // I know this is not right
                     databaseSettings.collectionName = dbName;
-                    self.log('error', 'Warning, monogodb settings not properly implemented!')
+                    self.error('Warning, monogodb settings not properly implemented!')
                     break;
 
                 //---------------------------------------------------------------------------
@@ -254,7 +253,7 @@ module.exports = {
                 //---------------------------------------------------------------------------
                 case 'cassandra':
                     // Not needed at the moment
-                    self.log('error', 'Warning, cassandra settings not implemented!')
+                    self.error('Warning, cassandra settings not implemented!')
                     return undefined;
                     break;
             }
@@ -291,7 +290,7 @@ module.exports = {
                 if( sub.length < 1) {
                     self.db.get(sub[0], function(err, value) {
                         if(err) {
-                            self.log('error', err);
+                            self.error(err);
                             callback(undefined);
                         }
                         else {
@@ -302,7 +301,7 @@ module.exports = {
                 else {
                     self.db.getSub(sub[0], sub.slice(1), function(err, value) {
                         if(err) {
-                            self.log('error', err);
+                            self.error(err);
                             callback(undefined);
                         }
                         else {
@@ -331,7 +330,7 @@ module.exports = {
         
                                 self.db.setSub(sub[0], subpath, object, function(err) {
                                     if(err)
-                                        self.log('error', err);
+                                        self.error(err);
                                     
                                     if( callback )
                                         callback(err);
@@ -344,7 +343,7 @@ module.exports = {
     
                             self.db.setSub(sub[0], subpath, object, function(err) {
                                 if(err)
-                                    self.log('error', err);
+                                    self.error(err);
                                 
                                 if( callback )
                                     callback(err);

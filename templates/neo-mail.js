@@ -54,7 +54,8 @@ module.exports = {
         'imap',
         'connection',
         'mailbox',
-        'retryCount'
+        'retryCount',
+        'retryErrorNotify'
     ],
 
     //===============================================================================================
@@ -64,6 +65,7 @@ module.exports = {
         self = this;
 
         self.retryCount = 0;
+        self.retryErrorNotify = true;
 
         self.imap = require('imap');
         self.util = require('util');
@@ -98,6 +100,14 @@ module.exports = {
     // Methods
     methods: [
         ////-----------------------------------------------------------------------------------------
+        // Notify about errors
+        function processError(err)
+        {
+            self.debug(err);
+            self.error('Error checking mail the '+self.retryCount+'th time');
+        },
+
+        ////-----------------------------------------------------------------------------------------
         // New mail has been received
         function onMail(numNewMsgs)
         {
@@ -122,8 +132,7 @@ module.exports = {
         // Error occured
         function onError(err)
         {
-            self.log('error', err);
-            self.signal('error', 'Error checking mail the '+self.retryCount+'th time');
+            self.processError(err);
             self.Reconnect();
         },
 
@@ -141,6 +150,7 @@ module.exports = {
 
                 self.mailbox = mailbox;
                 self.retryCount = 0;
+                self.retryErrorNotify = true;
             });
         },
 
@@ -151,7 +161,15 @@ module.exports = {
             self.retryCount++;
 
             if( self.retryCount >= 10 )
+            {
+                if( self.retryErrorNotify )
+                {
+                    self.retryErrorNotify = false;
+                    self.processError('Retry count exceeded');
+                }
+
                 return;
+            }
 
             self.mailbox = undefined;
 

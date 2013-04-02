@@ -112,8 +112,7 @@ module.exports = {
         ////-----------------------------------------------------------------------------------------
         // If an error occurs
         function onError(error) {
-            self.log('error', error);
-            self.signal('error', self.util.inspect(error));
+            self.error(error);
         },
         
         ////-----------------------------------------------------------------------------------------

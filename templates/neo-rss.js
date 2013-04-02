@@ -90,63 +90,70 @@ module.exports = {
         // Check a specific feed and notify if new articles are available
         function parseFeed(thisIdx, thisFeed)
         {
-            self.parser.parseURL(thisFeed, {}, function(err, content)
+            try
             {
-                // Error case
-                if( err || self.feedTimes[thisIdx] === undefined)
+                self.parser.parseURL(thisFeed, {}, function(err, content)
                 {
-                    self.signal('error', 'Reading feed '+thisFeed+' failed.');
-                    return;
-                }
-
-                // First check of this feed
-                if( self.feedTimes[thisIdx] === null )
-                {
-                    self.feedTimes[thisIdx] = content.items[0].published_at;
-                    return;
-                }
-
-                // Feed has no updates
-                if( content.items[0].published_at === self.feedTimes[thisIdx] )
-                    return;
-
-                // Find out how many new articles there are
-                var cntNewItems = undefined;
-                for( var idxItems = 0; idxItems < content.items.length; idxItems++ )
-                {
-                    if( content.items[idxItems].published_at === self.feedTimes[thisIdx] )
+                    // Error case
+                    if( err || self.feedTimes[thisIdx] === undefined)
                     {
-                        cntNewItems = idxItems;
-                        break;
+                        self.error('Reading feed '+thisFeed+' failed.');
+                        return;
                     }
-                }
 
-                // New articles?
-                if( cntNewItems === undefined || cntNewItems === 0 )
-                    return;
+                    // First check of this feed
+                    if( self.feedTimes[thisIdx] === null )
+                    {
+                        self.feedTimes[thisIdx] = content.items[0].published_at;
+                        return;
+                    }
 
-                // Publish new articles to network
-                for( var idxNewItems = (cntNewItems - 1); idxNewItems >= 0 ; idxNewItems--)
-                {
-                    var thisArticle = content.items[idxNewItems];
+                    // Feed has no updates
+                    if( content.items[0].published_at === self.feedTimes[thisIdx] )
+                        return;
 
-                    var thisTitle = thisArticle.title;
-                    if( thisArticle.author !== undefined )
-                        thisTitle = '[' + thisArticle.author + '] ' + thisArticle.title;
+                    // Find out how many new articles there are
+                    var cntNewItems = undefined;
+                    for( var idxItems = 0; idxItems < content.items.length; idxItems++ )
+                    {
+                        if( content.items[idxItems].published_at === self.feedTimes[thisIdx] )
+                        {
+                            cntNewItems = idxItems;
+                            break;
+                        }
+                    }
 
-                    self.signal(
-                        'message',
-                        content.title,
-                        thisArticle.published_at,
-                        thisArticle.url,
-                        thisTitle,
-                        thisArticle.summary
-                    );
-                }
+                    // New articles?
+                    if( cntNewItems === undefined || cntNewItems === 0 )
+                        return;
 
-                // Set latest article
-                self.feedTimes[thisIdx] = content.items[0].published_at;
-            });
+                    // Publish new articles to network
+                    for( var idxNewItems = (cntNewItems - 1); idxNewItems >= 0 ; idxNewItems--)
+                    {
+                        var thisArticle = content.items[idxNewItems];
+
+                        var thisTitle = thisArticle.title;
+                        if( thisArticle.author !== undefined )
+                            thisTitle = '[' + thisArticle.author + '] ' + thisArticle.title;
+
+                        self.signal(
+                            'message',
+                            content.title,
+                            thisArticle.published_at,
+                            thisArticle.url,
+                            thisTitle,
+                            thisArticle.summary
+                        );
+                    }
+
+                    // Set latest article
+                    self.feedTimes[thisIdx] = content.items[0].published_at;
+                });
+            }
+            catch(err)
+            {
+                self.error(err);
+            }
         }
     ],
 

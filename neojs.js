@@ -43,8 +43,8 @@ module.exports = (function () {
     // Properties
     ////=============================================================================================
 
-    scope.name = 'neo';
-    scope.debug = false;
+    scope.id = 'neo';
+    scope.enableDebug = false;
     scope.processPath = process.cwd();
     scope.namespace = {};
     scope.eventBus = new scope.events.EventEmitter2({wildcard: true, delimiter: '.', maxListeners: 200});
@@ -63,9 +63,12 @@ module.exports = (function () {
     // Construction
     scope.init = function()
     {
-        process.addListener("unhandledException", function (err)
+        process.addListener("uncaughtException", function(err)
         {
-            scope.log('error', err);
+            if( err.stack )
+                err = err.stack;
+
+            scope.error(err);
         });
 
         // Add default modules
@@ -87,17 +90,43 @@ module.exports = (function () {
         });
     };
 
+
     ////-----------------------------------------------------------------------------------------
     //  Logging
-    scope.log = function(type, msg)
+    scope.error = function(what)
     {
-        var showDebug = ( type === 'debug' && scope.debug );
+        scope.log('error', this.id, what);
+    };
+
+    ////-----------------------------------------------------------------------------------------
+    //  Logging
+    scope.debug = function(what)
+    {
+        scope.log('debug', this.id, what);
+    };
+
+    ////-----------------------------------------------------------------------------------------
+    //  Logging
+    scope.log = function(type, src, what)
+    {
+        // If no source given, set to neo
+        if( src === undefined || typeof(src) !== 'string' )
+            src = scope.id;
+
+        // Ensure output is a string
+        if( typeof(what) !== 'string' )
+            what = scope.util.inspect(what);
+
+        // Forward error messages
+        if( type === 'error')
+            scope.eventBus.emit(src + '.' + type, what);
+
+        // Output log string if needed
+        var showDebug = ( type === 'debug' && scope.enableDebug );
         var showError = ( type === 'error');
 
         if( showError || showDebug )
-        {
-            console.log('['+this.name+']'+this.util.inspect(msg));
-        }
+            console.log('[' + src + '] ' + what);
     };
 
     ////=============================================================================================
@@ -109,7 +138,7 @@ module.exports = (function () {
     {
         if( source === undefined )
         {
-            scope.log('debug','No template data supplied');
+            scope.debug('No template data supplied');
             return false;
         }
 
@@ -145,7 +174,7 @@ module.exports = (function () {
                 }
             }
             catch (err) {
-                scope.log('error', 'Error registering templates: ' + scope.util.inspect(err));
+                scope.error('Error registering templates: ' + scope.util.inspect(err));
             }
         }
         // Its an object
@@ -172,26 +201,26 @@ module.exports = (function () {
     {
         // Template exists
         if( !templateObject ) {
-            scope.log('debug','Registering template failed');
+            scope.debug('Registering template failed');
             return false;
         }
 
         // Has a name
         if( !templateObject.templateName ) {
-            scope.log('debug','Template has no name');
+            scope.debug('Template has no name');
             return false;
         }
 
         // Template exists?
         if( scope.templates[templateObject.templateName] ) {
-            scope.log('debug','Template '+templateObject.templateName+'already exists');
+            scope.debug('Template '+templateObject.templateName+'already exists');
             return false;
         }
 
         // Add inheritances
         templateObject = scope.templateInherit(templateObject);
         if( templateObject === false ) {
-            scope.log('debug','Inheriting template '+templateObject.templateName+' failed');
+            scope.debug('Inheriting template '+templateObject.templateName+' failed');
             return false;
         }
 
@@ -221,7 +250,7 @@ module.exports = (function () {
         }
         catch(err)
         {
-            scope.log('error', 'Error reading template file: ' + scope.util.inspect(err));
+            scope.error('Error reading template file: ' + scope.util.inspect(err));
         }
 
         return undefined;
@@ -237,7 +266,7 @@ module.exports = (function () {
             // is registered?
             if( !scope.templates[template.inherits] )
             {
-                scope.log('debug','Base template '+template.inherits+' missing!');
+                scope.debug('Base template '+template.inherits+' missing!');
                 return false;
             }
 
@@ -290,7 +319,7 @@ module.exports = (function () {
     {
         if( config === undefined )
         {
-            scope.log('debug','Config Empty');
+            scope.debug('Config Empty');
             return false;
         }
 
@@ -303,7 +332,7 @@ module.exports = (function () {
 
         if( configData === undefined )
         {
-            scope.log('debug','No valid configuration has been supplied');
+            scope.debug('No valid configuration has been supplied');
             return false;
         }
 
@@ -330,14 +359,14 @@ module.exports = (function () {
         // Check if critical properties exist
         if( configObject.id === undefined || configObject.template === undefined )
         {
-            scope.log('error', "Could not create object, id or template missing");
+            scope.error("Could not create object, id or template missing");
             return false;
         }
 
         // Check if id is unique
         if( scope.objects[configObject.id] !== undefined )
         {
-            scope.log('error', "There already is an object with the ID "+configObject.id);
+            scope.error("There already is an object with the ID "+configObject.id);
             return false;
         }
 
@@ -349,7 +378,7 @@ module.exports = (function () {
         var template = scope.templates[configObject.template];
         if( !template )
         {
-            scope.log('error',
+            scope.error(
                 'Could not create object with ID ' + configObject.id
                 + ' because template ' + configObject.template+' is missing'
             );
@@ -360,7 +389,7 @@ module.exports = (function () {
         var checkResult = scope.objectCheckDependencies(configObject);
         if( checkResult !== true )
         {
-            scope.log('debug',
+            scope.debug(
                 'Dependencies: ' + checkResult.join(',')
                 + ' not found for ID ' + configObject.id
                 + ' ,retrying when new objects are created'
@@ -370,7 +399,7 @@ module.exports = (function () {
         }
 
         // Create object instance
-        scope.log('debug','Creating template ' + configObject.template + ' for object with ID ' + configObject.id+'..');
+        scope.debug('Creating template ' + configObject.template + ' for object with ID ' + configObject.id+'..');
 
         scope.objectInstanceCreate(template, configObject, function(objectInterface)
         {
@@ -383,7 +412,7 @@ module.exports = (function () {
             }
             else
             {
-                scope.log('error',
+                scope.error(
                     'Creating template failed for object with ID '+ configObject.id
                         + ' with template '+configObject.template
                 );
@@ -422,7 +451,7 @@ module.exports = (function () {
     {
         if( scope.objects[object.id] )
         {
-            scope.log('debug','Object with ID '+object.id+' already registered');
+            scope.debug('Object with ID '+object.id+' already registered');
             return false;
         }
         
@@ -445,7 +474,8 @@ module.exports = (function () {
             self.self = {};
 
             self.neo = scope.namespace.neo;
-            self.log = scope.log;
+            self.debug = scope.debug;
+            self.error = scope.error;
             self.events = scope.eventBus;
             self.templateName = template.templateName;
 
@@ -488,6 +518,11 @@ module.exports = (function () {
 
             self.config.id = config.id;
             self.config.path = scope.processPath;
+
+            ////-------------------------------------------------------------------------------------
+            // Important for identification
+
+            self.id = self.config.id;
 
             ////-------------------------------------------------------------------------------------
             // Add properties to the object
@@ -684,7 +719,7 @@ module.exports = (function () {
     //  Recheck dependencies
     scope.objectAddWaiting = function(config, callback)
     {
-        scope.log('debug','Dependencies for '+config.id+' not satisfied, waiting');
+        scope.debug('Dependencies for '+config.id+' not satisfied, waiting');
                 
         var self = {};
         self.pos = (scope.waiting.push({}) - 1);
@@ -742,7 +777,7 @@ module.exports = (function () {
     scope.namespace.neo.register    = scope.templateRegister;  // (source)
     scope.namespace.neo.create      = scope.objectCreate;      // (config, callback)
 
-    scope.namespace.neo.enableDebug = function(enableDebug) { scope.debug = enableDebug; };
+    scope.namespace.neo.enableDebug = function(enableDebug) { scope.enableDebug = enableDebug; };
     scope.namespace.neo.events = scope.eventBus;
     scope.namespace.neo.exit = scope.exit;
 

@@ -93,7 +93,7 @@ module.exports = {
 
         // Sync to db
         self.session.schemaSync(function(tx){
-            self.log('debug', 'Schema synced');
+            self.debug('Schema synced');
             
             ready();
         });
@@ -121,7 +121,7 @@ module.exports = {
         function loadSchema(schema) {
             
 	        if( !schema ) {
-                self.log('debug', 'Schema invalid');
+                self.debug('Schema invalid');
                 ready(false);
             }
             
@@ -195,19 +195,19 @@ module.exports = {
         ////-----------------------------------------------------------------------------------------
         //  Get Tables object
         function Update(name, what, cb) {
-            self.log('debug', 'UPDATE');
+            self.debug('UPDATE');
             cb();
         },
         
         ////-----------------------------------------------------------------------------------------
         //  Get Tables object
         function Delete(name, what, cb) {
-            self.log('debug', 'DELETE');
+            self.debug('DELETE');
             cb();
         },
         
         function test() {
-            console.log('tested2 orm');   
+            self.debug('tested2 orm');
         }
         
        
