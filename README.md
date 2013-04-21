@@ -181,6 +181,9 @@ An array of method or property names that will be made available from outside. E
 ## Included templates ##
 
 * irc - Handling an IRC connection ( used in i2x )
+* mail - Get notified via IMAP when a new message arrives ( used in myhub )
+* rss - Periodically check RSS feeds and notify about it ( used in myhub )
+* simpleweb - Web server with static directory, path hooks and communication via nowjs ( used in myhub )
+* smtp - Send mails via SMTP
 * xmpp - Handling an XMPP connection ( used in i2x )
 * store - Object based key/value store ( used in i2x )
-* orm - ORM store, not tested

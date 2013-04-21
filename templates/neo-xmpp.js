@@ -44,6 +44,7 @@ module.exports = {
         'password',
         'host',
         'port',
+        { key: 'carbons', value: false },
         { key: 'silent', value: true }
     ],
     
@@ -54,7 +55,8 @@ module.exports = {
         'util',
         'server',
         'presence',
-        { key: 'roster', value: {}}
+        { key: 'roster', value: {}},
+        { key: 'carbonsEnabled', value: false }
     ],
     
     //===============================================================================================
@@ -83,13 +85,24 @@ module.exports = {
         
         self.server.on('online', function()
         {
+            // Try to enable carbons on server if desired
+            if( self.config.carbons )
+            {
+                var iq = new self.xmpp.Element(
+                    'iq',
+                    {type:'set', id: 'enable_carbons', 'xmlns': 'jabber:client'}
+                );
+                iq.c('enable', {'xmlns': 'urn:xmpp:carbons:1'});
+                self.server.send(iq);
+            }
+
             self.server.send(self.presence);
-            
+
             // Request the Rooster
             var iq = new self.xmpp.Element('iq', {type:'get', id: 'neoxmppreq'});
             iq.c('query', {'xmlns': 'jabber:iq:roster'});
-            self.server.send(iq);  
-            
+            self.server.send(iq);
+
             ready();
         });
     },
@@ -121,7 +134,14 @@ module.exports = {
             if(stanza.attrs.type === 'error') {
                 self.onError('Got an error from XMPP server');
             }
-                     
+
+            // Check if carbons are enabled
+            if( stanza.name === 'iq' && stanza.attrs.id && stanza.attrs.id === 'enable_carbons')
+            {
+                if( stanza.attrs.type && stanza.attrs.type === 'result' && self.config.carbons )
+                    self.carbonsEnabled = true;
+            }
+
             // Retrieve the rooster on connect ( or request )
             if( stanza.name === 'iq' && stanza.attrs.id && stanza.attrs.id === 'neoxmppreq')
             {
@@ -162,21 +182,75 @@ module.exports = {
                     friendlyName = self.roster[self.jidToBare(stanza.attrs.from)].name;
             }
 
-
             // Message from one of the clients
-            if (stanza.name === 'message') {
-                for(var child in stanza.children) {
-                    if( stanza.children[child].name !== undefined ) {
-                        if( stanza.children[child].name ==='body' ) {   
-                            var body = stanza.children[child];
-                            
-                            var message = body.children.join('');
-                            
-                            if( message.charAt(0) === '!') {
-                                self.signal('command', stanza.attrs.from, stanza.attrs.to, message, friendlyName);
-                            }
-		                    else {
-                                self.signal('message', stanza.attrs.from, stanza.attrs.to, message, friendlyName);
+            if (stanza.name === 'message')
+            {
+                for(var child in stanza.children)
+                {
+                    if( !stanza.children[child].name )
+                        continue;
+
+                    // Process message body
+                    if( stanza.children[child].name ==='body' )
+                    {
+                        var body = stanza.children[child];
+
+                        var message = body.children.join('');
+
+                        if( message.charAt(0) === '!')
+                            self.signal('command', stanza.attrs.from, stanza.attrs.to, message, friendlyName);
+                        else
+                            self.signal('message', stanza.attrs.from, stanza.attrs.to, message, friendlyName);
+                    }
+
+                    // Process forwareded messages
+                    if( stanza.children[child].name === 'sent' && self.config.carbons )
+                    {
+                        // Iterate through the children to get forwareded messages
+                        for(var sentChild in stanza.children)
+                        {
+                            if(
+                                !stanza.children[sentChild].name ||
+                                stanza.children[sentChild].name !== 'forwarded'
+                            )
+                            { continue; }
+
+                            var forwareded = stanza.children[sentChild];
+
+                            // Iterate through forwareded messages
+                            for(var forwarededChild in forwareded.children)
+                            {
+                                if(
+                                    !forwareded.children[forwarededChild].name ||
+                                    forwareded.children[forwarededChild].name !== 'message'
+                                )
+                                { continue; }
+
+                                var forwarededMessage = forwareded.children[forwarededChild];
+
+                                // Get Friendlyname of contact
+                                var messagefriendlyName = undefined;
+
+                                if( self.roster[self.jidToBare(forwarededMessage.attrs.to)] === undefined)
+                                    self.roster[self.jidToBare(forwarededMessage.attrs.to)] = {};
+
+                                messagefriendlyName = self.jidToBare(forwarededMessage.attrs.to);
+                                if( self.roster[self.jidToBare(forwarededMessage.attrs.to)].name !== undefined )
+                                    messagefriendlyName = self.roster[self.jidToBare(forwarededMessage.attrs.to)].name;
+
+                                // Iterate through forwareded message children
+                                for(var forwarededMessageChild in forwarededMessage.children)
+                                {
+                                    if(
+                                        !forwarededMessage.children[forwarededMessageChild].name ||
+                                        forwarededMessage.children[forwarededMessageChild].name !== 'body'
+                                    )
+                                    { continue; }
+
+                                    var forwarededMessageBody = forwarededMessage.children[forwarededMessageChild];
+                                    var message = forwarededMessageBody.children.join('');
+                                    self.signal('sent', forwarededMessage.attrs.from, forwarededMessage.attrs.to, message, messagefriendlyName);
+                                }
                             }
                         }
                     }
