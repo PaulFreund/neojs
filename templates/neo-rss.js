@@ -95,9 +95,9 @@ module.exports = {
                 self.parser.parseURL(thisFeed, {}, function(err, content)
                 {
                     // Error case
-                    if( err || self.feedTimes[thisIdx] === undefined)
+                    if( err || self.feedTimes[thisIdx] === undefined || content.items.length <= 0 )
                     {
-                        self.error('Reading feed '+thisFeed+' failed.');
+                        self.debug('Reading feed '+thisFeed+' failed.');
                         return;
                     }
 
