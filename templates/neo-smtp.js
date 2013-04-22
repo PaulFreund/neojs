@@ -85,7 +85,7 @@ module.exports = {
     slots: [
         ////-----------------------------------------------------------------------------------------
         // Send a mail
-        function sendMail(to, subject, message)
+        function sendMail(html, to, subject, message)
         {
             var transport = self.nodemailer.createTransport("SMTP", {
                 host: self.config.host,
@@ -98,12 +98,15 @@ module.exports = {
                 }
             });
 
-            var mail = {
-                from: self.config.user,
-                to: to,
-                subject: subject,
-                text: message
-            };
+            var mail = {};
+            mail.from = self.config.user;
+            mail.to = to;
+            mail.subject = subject;
+
+            if(html)
+                mail.html = message;
+            else
+                mail.text = message;
 
             transport.sendMail(mail, function(error, response)
             {
