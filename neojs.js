@@ -456,7 +456,7 @@ module.exports = (function () {
         }
         
         scope.objects[object.id] = object;
-        scope.namespace[object.id] = object;
+        scope.namespace.neo[object.id] = object;
         return true;
     };
 
