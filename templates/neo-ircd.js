@@ -43,7 +43,7 @@ module.exports = {
         'hostname',
         'serverDescription',
         'serverName',
-        'port',
+        'listen',
         'linkPort',
         'motd',
         'whoWasLimit',
@@ -108,6 +108,9 @@ module.exports = {
         self.hook(self.server.commands, 'OPER');
         self.hook(self.server.commands, 'QUIT');
         self.hook(self.server.commands, 'MOTD');
+
+        // Setup logging
+        self.server.winston.remove(self.server.winston.transports.Console);
 
         // Start the server
         self.server.start();
